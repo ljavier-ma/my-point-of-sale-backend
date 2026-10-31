@@ -1,9 +1,12 @@
-import { RequestHandler } from "express";
+import type { Request, RequestHandler, Response } from "express";
 
 import { firestoreDB } from "../config/firebase.js";
 
-export const storeMiddleware: RequestHandler = async (req, res) => {
-  const userId = req.firebaseUser?.uid;
+export const storeMiddleware: RequestHandler = async (
+  req: Request,
+  res: Response,
+): Promise<void> => {
+  const userId: string | undefined = req.firebaseUser?.uid;
   if (!userId) {
     res.status(401).json({ error: "Authentication required" });
     return;
