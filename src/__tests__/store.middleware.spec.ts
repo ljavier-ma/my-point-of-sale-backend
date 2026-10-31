@@ -55,7 +55,11 @@ describe("storeMiddleware", () => {
         ref: firstStoreRef,
       },
       {
-        data: (): { name: string } => ({ name: "Matching" }),
+        data: (): { extra: boolean; id: string; name: string } => ({
+          extra: true,
+          id: "document-data-id",
+          name: "Matching",
+        }),
         id: "matching-store",
         ref: matchingStoreRef,
       },
@@ -84,6 +88,37 @@ describe("storeMiddleware", () => {
     expect(res.status).not.toHaveBeenCalled();
   });
 
+  it("returns 500 when the store document has no name", async () => {
+    firestoreDB.collection.mockReturnValue({
+      get: vi.fn().mockResolvedValue({
+        docs: [
+          {
+            data: (): Record<string, never> => ({}),
+            id: "store-1",
+            ref: { collection: vi.fn().mockReturnValue({ doc: vi.fn() }) },
+          },
+        ],
+      }),
+    });
+    firestoreDB.getAll.mockResolvedValue([{ exists: true }]);
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
+
+    const req = { firebaseUser: { uid: "user-1" } } as Request;
+    const res = createResponse();
+
+    await storeMiddleware(req, res, vi.fn());
+
+    expect(consoleError).toHaveBeenCalledWith(
+      "Store document is missing a valid id or name:",
+      "store-1",
+    );
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({ error: "Failed to fetch store" });
+    consoleError.mockRestore();
+  });
+
   it("returns 404 when no store contains the authenticated user", async () => {
     firestoreDB.collection.mockReturnValue({
       get: vi.fn().mockResolvedValue({
@@ -106,6 +141,37 @@ describe("storeMiddleware", () => {
     expect(res.json).toHaveBeenCalledWith({
       error: "No store found for this user",
     });
+  });
+
+  it("returns 500 when the store document has no string name", async () => {
+    firestoreDB.collection.mockReturnValue({
+      get: vi.fn().mockResolvedValue({
+        docs: [
+          {
+            data: (): { name: number } => ({ name: 123 }),
+            id: "store-1",
+            ref: { collection: vi.fn().mockReturnValue({ doc: vi.fn() }) },
+          },
+        ],
+      }),
+    });
+    firestoreDB.getAll.mockResolvedValue([{ exists: true }]);
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
+
+    const req = { firebaseUser: { uid: "user-1" } } as Request;
+    const res = createResponse();
+
+    await storeMiddleware(req, res, vi.fn());
+
+    expect(consoleError).toHaveBeenCalledWith(
+      "Store document is missing a valid id or name:",
+      "store-1",
+    );
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({ error: "Failed to fetch store" });
+    consoleError.mockRestore();
   });
 
   it("logs Firestore errors and returns 500", async () => {
