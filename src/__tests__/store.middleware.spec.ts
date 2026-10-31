@@ -13,7 +13,7 @@ vi.mock("../config/firebase.js", () => ({ firestoreDB }));
 
 import { storeMiddleware } from "../middlewares/store.middleware.js";
 
-const createResponse = () =>
+const createResponse = (): Response =>
   ({
     json: vi.fn(),
     status: vi.fn().mockReturnThis(),
@@ -49,9 +49,13 @@ describe("storeMiddleware", () => {
       }),
     };
     const stores = [
-      { data: () => ({ name: "First" }), id: "first-store", ref: firstStoreRef },
       {
-        data: () => ({ name: "Matching" }),
+        data: (): { name: string } => ({ name: "First" }),
+        id: "first-store",
+        ref: firstStoreRef,
+      },
+      {
+        data: (): { name: string } => ({ name: "Matching" }),
         id: "matching-store",
         ref: matchingStoreRef,
       },

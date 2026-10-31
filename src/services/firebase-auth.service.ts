@@ -1,11 +1,16 @@
-import type { RequestHandler } from "express";
+import type { NextFunction, Request, RequestHandler, Response } from "express";
 import type { DecodedIdToken } from "firebase-admin/auth";
 
 import { firebaseAuth } from "../config/firebase.js";
 
-export const firebaseAuthMiddleware: RequestHandler = async (req, res, next) => {
-  const authorization = req.get("authorization");
-  const token = authorization?.match(/^Bearer\s+(.+)$/i)?.[1];
+export const firebaseAuthMiddleware: RequestHandler = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
+  const authorization: string | undefined = req.get("authorization");
+  const token: string | undefined =
+    authorization?.match(/^Bearer\s+(.+)$/i)?.[1];
 
   if (!token) {
     res.status(401).json({ error: "Authentication required" });
