@@ -392,3 +392,54 @@ export const updateProductMiddleware: RequestHandler<
     res.status(500).json({ error: "Failed to update product" });
   }
 };
+
+export const deleteProductMiddleware: RequestHandler<
+  ProductParams,
+  ErrorResponse,
+  unknown
+> = async (
+  req: Request<ProductParams, ErrorResponse, unknown>,
+  res: Response<ErrorResponse>,
+): Promise<void> => {
+  const userId: string | undefined = getAuthenticatedUserId(req);
+  if (!userId) {
+    res.status(401).json({ error: "Authentication required" });
+    return;
+  }
+
+  try {
+    const stores = await firestoreDB.collection("stores").get();
+    if (stores.empty) {
+      res.status(404).json({ error: "No store found for this user" });
+      return;
+    }
+
+    const userDocuments = await firestoreDB.getAll(
+      ...stores.docs.map((store: QueryDocumentSnapshot): DocumentReference =>
+        store.ref.collection("users").doc(userId),
+      ),
+    );
+    const storeIndex: number = userDocuments.findIndex(
+      (userDocument: DocumentSnapshot): boolean => userDocument.exists,
+    );
+    if (storeIndex === -1) {
+      res.status(404).json({ error: "No store found for this user" });
+      return;
+    }
+
+    const productReference = stores.docs[storeIndex].ref
+      .collection("products")
+      .doc(req.params.productId);
+    const productDocument = await productReference.get();
+    if (!productDocument.exists) {
+      res.status(404).json({ error: "Product not found" });
+      return;
+    }
+
+    await productReference.delete();
+    res.status(204).end();
+  } catch (error) {
+    console.error("Failed to delete product from Firestore:", error);
+    res.status(500).json({ error: "Failed to delete product" });
+  }
+};

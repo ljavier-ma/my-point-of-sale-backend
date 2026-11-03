@@ -16,6 +16,7 @@ const { firestoreDB, productCollection, productReference } = vi.hoisted(() => ({
     offset: vi.fn(),
   },
   productReference: {
+    delete: vi.fn(),
     get: vi.fn(),
     update: vi.fn(),
   },
@@ -32,6 +33,7 @@ import type {
 
 import {
   createProductMiddleware,
+  deleteProductMiddleware,
   productMiddleware,
   productsMiddleware,
   updateProductMiddleware,
@@ -57,6 +59,7 @@ const createResponse = (): Response<
   ErrorResponse | ProductResponse | ProductsResponse
 > =>
   ({
+    end: vi.fn(),
     json: vi.fn(),
     status: vi.fn().mockReturnThis(),
   }) as unknown as Response<ErrorResponse | ProductResponse | ProductsResponse>;
@@ -85,7 +88,9 @@ function configureFirestore(config: FirestoreConfig = {}): void {
     exists: true,
     id: "product-1",
   });
+
   productReference.update.mockResolvedValue(undefined);
+  productReference.delete.mockResolvedValue(undefined);
   if (config.singleProduct) {
     productReference.get.mockResolvedValue(config.singleProduct);
   }
@@ -125,6 +130,64 @@ function configureFirestore(config: FirestoreConfig = {}): void {
     })),
   );
 }
+
+describe("deleteProductMiddleware", () => {
+  beforeEach((): void => {
+    vi.clearAllMocks();
+  });
+
+  it("deletes the product from the authenticated user's store", async () => {
+    configureFirestore();
+    const req = {
+      firebaseUser: { uid: "user-1" },
+      params: { productId: "product-1" },
+    } as Request<{ productId: string }, ErrorResponse>;
+    const res = createResponse();
+
+    await deleteProductMiddleware(req, res, vi.fn());
+
+    expect(productCollection.doc).toHaveBeenCalledWith("product-1");
+    expect(productReference.delete).toHaveBeenCalledOnce();
+    expect(res.status).toHaveBeenCalledWith(204);
+    expect(res.end).toHaveBeenCalledOnce();
+  });
+
+  it("returns 404 if the product does not exist", async () => {
+    configureFirestore({
+      singleProduct: {
+        data: (): undefined => undefined,
+        exists: false,
+        id: "missing-product",
+      },
+    });
+    const req = {
+      firebaseUser: { uid: "user-1" },
+      params: { productId: "missing-product" },
+    } as Request<{ productId: string }, ErrorResponse>;
+    const res = createResponse();
+
+    await deleteProductMiddleware(req, res, vi.fn());
+
+    expect(res.status).toHaveBeenCalledWith(404);
+    expect(res.json).toHaveBeenCalledWith({ error: "Product not found" });
+    expect(productReference.delete).not.toHaveBeenCalled();
+  });
+
+  it("returns 401 when the request is unauthenticated", async () => {
+    const req = {
+      params: { productId: "product-1" },
+    } as Request<{ productId: string }, ErrorResponse>;
+    const res = createResponse();
+
+    await deleteProductMiddleware(req, res, vi.fn());
+
+    expect(res.status).toHaveBeenCalledWith(401);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Authentication required",
+    });
+    expect(firestoreDB.collection).not.toHaveBeenCalled();
+  });
+});
 
 describe("productsMiddleware", () => {
   beforeEach((): void => {
