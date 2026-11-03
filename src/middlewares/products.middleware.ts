@@ -37,6 +37,25 @@ const productFields = [
   "unitaryPrice",
 ] as const satisfies readonly (keyof Omit<ProductResponse, "id">)[];
 
+function isCompleteProductInput(
+  value: unknown,
+): value is Omit<ProductResponse, "id"> {
+  if (
+    typeof value !== "object" ||
+    value === null ||
+    Array.isArray(value) ||
+    Object.keys(value).length !== productFields.length
+  ) {
+    return false;
+  }
+
+  const data: Record<string, unknown> = value as Record<string, unknown>;
+  return productFields.every(
+    (field: (typeof productFields)[number]): boolean =>
+      Object.hasOwn(data, field) && isValidProductField(field, data[field]),
+  );
+}
+
 function isProductData(value: unknown): value is Omit<ProductResponse, "id"> {
   if (typeof value !== "object" || value === null) {
     return false;
@@ -45,16 +64,22 @@ function isProductData(value: unknown): value is Omit<ProductResponse, "id"> {
   const data: Record<string, unknown> = value as Record<string, unknown>;
   return productFields.every(
     (field: (typeof productFields)[number]): boolean => {
-      const fieldValue: unknown = data[field];
-      if (field === "barcode" || field === "code" || field === "name") {
-        return typeof fieldValue === "string";
-      }
-      if (field === "isPaint") {
-        return typeof fieldValue === "boolean";
-      }
-      return typeof fieldValue === "number" && Number.isFinite(fieldValue);
+      return isValidProductField(field, data[field]);
     },
   );
+}
+
+function isValidProductField(
+  field: (typeof productFields)[number],
+  value: unknown,
+): boolean {
+  if (field === "barcode" || field === "code" || field === "name") {
+    return typeof value === "string";
+  }
+  if (field === "isPaint") {
+    return typeof value === "boolean";
+  }
+  return typeof value === "number" && Number.isFinite(value);
 }
 
 function parsePaginationValue(
@@ -264,10 +289,10 @@ export const productMiddleware: RequestHandler<
       return;
     }
 
-    const productDocument = await stores.docs[storeIndex].ref
+    const productReference = stores.docs[storeIndex].ref
       .collection("products")
-      .doc(req.params.productId)
-      .get();
+      .doc(req.params.productId);
+    const productDocument = await productReference.get();
     if (!productDocument.exists) {
       res.status(404).json({ error: "Product not found" });
       return;
@@ -291,5 +316,79 @@ export const productMiddleware: RequestHandler<
   } catch (error) {
     console.error("Failed to fetch product from Firestore:", error);
     res.status(500).json({ error: "Failed to fetch product" });
+  }
+};
+
+export const updateProductMiddleware: RequestHandler<
+  ProductParams,
+  ErrorResponse | ProductResponse,
+  unknown
+> = async (
+  req: Request<ProductParams, ErrorResponse | ProductResponse, unknown>,
+  res: Response<ErrorResponse | ProductResponse>,
+): Promise<void> => {
+  const userId: string | undefined = getAuthenticatedUserId(req);
+  if (!userId) {
+    res.status(401).json({ error: "Authentication required" });
+    return;
+  }
+
+  if (!isCompleteProductInput(req.body)) {
+    res.status(400).json({ error: "Invalid product data" });
+    return;
+  }
+
+  try {
+    const stores = await firestoreDB.collection("stores").get();
+    if (stores.empty) {
+      res.status(404).json({ error: "No store found for this user" });
+      return;
+    }
+
+    const userDocuments = await firestoreDB.getAll(
+      ...stores.docs.map((store: QueryDocumentSnapshot): DocumentReference =>
+        store.ref.collection("users").doc(userId),
+      ),
+    );
+    const storeIndex: number = userDocuments.findIndex(
+      (userDocument: DocumentSnapshot): boolean => userDocument.exists,
+    );
+    if (storeIndex === -1) {
+      res.status(404).json({ error: "No store found for this user" });
+      return;
+    }
+
+    const productReference = stores.docs[storeIndex].ref
+      .collection("products")
+      .doc(req.params.productId);
+    const productDocument = await productReference.get();
+    if (!productDocument.exists) {
+      res.status(404).json({ error: "Product not found" });
+      return;
+    }
+
+    const existingData: unknown = productDocument.data();
+    if (!isProductData(existingData)) {
+      console.error(
+        "Product document is missing valid product fields:",
+        productDocument.id,
+      );
+      res.status(500).json({ error: "Failed to update product" });
+      return;
+    }
+
+    const updatedProductData: Omit<ProductResponse, "id"> = pickProductData(
+      req.body,
+    );
+    await productReference.update(updatedProductData);
+    const response: ProductResponse = {
+      ...existingData,
+      ...updatedProductData,
+      id: productDocument.id,
+    };
+    res.json(response);
+  } catch (error) {
+    console.error("Failed to update product in Firestore:", error);
+    res.status(500).json({ error: "Failed to update product" });
   }
 };
