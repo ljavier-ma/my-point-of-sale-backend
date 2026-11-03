@@ -56,3 +56,6 @@ document ID and returns the product with that ID.
 `PATCH /products/{productId}` updates one or more product fields in the
 authenticated user's store. The request must contain at least one valid product
 field; the product ID and unrecognized fields cannot be changed.
+
+`DELETE /product/{productId}` deletes the specified product from the
+authenticated user's store and returns `204 No Content` when successful.

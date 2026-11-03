@@ -14,6 +14,7 @@ import type { UserResponse } from "#types/user.js";
 
 import {
   createProductMiddleware,
+  deleteProductMiddleware,
   productMiddleware,
   productsMiddleware,
   updateProductMiddleware,
@@ -57,6 +58,11 @@ app.patch<{ productId: string }, ErrorResponse | ProductResponse, unknown>(
   "/products/:productId",
   firebaseAuthMiddleware,
   updateProductMiddleware,
+);
+app.delete<{ productId: string }, ErrorResponse>(
+  "/products/:productId",
+  firebaseAuthMiddleware,
+  deleteProductMiddleware,
 );
 
 app.listen(port, (): void => {
