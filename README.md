@@ -13,3 +13,37 @@ Authorization: Bearer YOUR_FIREBASE_ID_TOKEN
 The endpoint verifies the token, finds the store containing the user's document
 at `stores/{storeId}/users/{uid}`, and returns the store document data with its
 Firestore document ID. Firestore subcollections are not included.
+
+## Products endpoint
+
+`GET /products?offset=0&limit=20` requires a Firebase ID token in the
+`Authorization` header. It finds the store containing the authenticated user
+and reads the page from `stores/{storeId}/products`. `offset` is a zero-based
+index and must be at least `0`; `limit` must be at least `1`.
+
+The response contains the requested products, each with its Firestore document
+ID, and the total number of products in that store:
+
+```json
+{
+  "products": [
+    {
+      "id": "product-document-id",
+      "barcode": "",
+      "code": "330750.51",
+      "eighthLiterPrice": 36,
+      "halfLiterPrice": 102,
+      "idealAmount": 2,
+      "isPaint": true,
+      "literPrice": 167,
+      "lowQuantity": 1,
+      "name": "ESMALTE S.D. ALUMINIO FINO 3.785 LTS",
+      "publicPrice": 397,
+      "quarterLiterPrice": 62,
+      "stock": 3,
+      "unitaryPrice": 273.7
+    }
+  ],
+  "totalOfProducts": 1
+}
+```
