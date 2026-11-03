@@ -47,3 +47,8 @@ ID, and the total number of products in that store:
   "totalOfProducts": 1
 }
 ```
+
+`POST /products` uses the same Firebase ID token and store membership. Send a
+JSON object with the product fields shown above, excluding `id`. The server
+creates a document in `stores/{storeId}/products` using a Firestore-generated
+document ID and returns the product with that ID.

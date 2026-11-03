@@ -8,6 +8,7 @@ const { firestoreDB, productCollection, productReference } = vi.hoisted(() => ({
     getAll: vi.fn(),
   },
   productCollection: {
+    add: vi.fn(),
     count: vi.fn(),
     doc: vi.fn(),
     get: vi.fn(),
@@ -29,6 +30,7 @@ import type {
 } from "../types/product.js";
 
 import {
+  createProductMiddleware,
   productMiddleware,
   productsMiddleware,
 } from "../middlewares/products.middleware.js";
@@ -74,6 +76,7 @@ function configureFirestore(config: FirestoreConfig = {}): void {
   const storeCount = config.storeCount ?? 1;
   productCollection.offset.mockReturnThis();
   productCollection.limit.mockReturnThis();
+  productCollection.add.mockResolvedValue({ id: "generated-product-id" });
   productCollection.get.mockResolvedValue({ docs: productDocuments });
   productReference.get.mockResolvedValue({
     data: (): typeof productData => productData,
@@ -258,6 +261,72 @@ describe("productsMiddleware", () => {
     expect(res.status).toHaveBeenCalledWith(404);
     expect(res.json).toHaveBeenCalledWith({
       error: "No store found for this user",
+    });
+  });
+
+  describe("createProductMiddleware", () => {
+    beforeEach((): void => {
+      vi.clearAllMocks();
+    });
+
+    it("creates the product with a Firestore-generated document ID", async () => {
+      configureFirestore();
+      const req = {
+        body: { ...productData, id: "client-id", ignored: "not stored" },
+        firebaseUser: { uid: "user-1" },
+      } as Request<
+        Record<string, never>,
+        ErrorResponse | ProductResponse,
+        unknown
+      >;
+      const res = createResponse();
+
+      await createProductMiddleware(req, res, vi.fn());
+
+      expect(productCollection.add).toHaveBeenCalledWith(productData);
+      expect(res.status).toHaveBeenCalledWith(201);
+      expect(res.json).toHaveBeenCalledWith({
+        ...productData,
+        id: "generated-product-id",
+      });
+    });
+
+    it("returns 400 when the product data is invalid", async () => {
+      configureFirestore();
+      const req = {
+        body: { ...productData, stock: "3" },
+        firebaseUser: { uid: "user-1" },
+      } as Request<
+        Record<string, never>,
+        ErrorResponse | ProductResponse,
+        unknown
+      >;
+      const res = createResponse();
+
+      await createProductMiddleware(req, res, vi.fn());
+
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(res.json).toHaveBeenCalledWith({ error: "Invalid product data" });
+      expect(productCollection.add).not.toHaveBeenCalled();
+    });
+
+    it("returns 401 when the request is unauthenticated", async () => {
+      const req = {
+        body: productData,
+      } as Request<
+        Record<string, never>,
+        ErrorResponse | ProductResponse,
+        unknown
+      >;
+      const res = createResponse();
+
+      await createProductMiddleware(req, res, vi.fn());
+
+      expect(res.status).toHaveBeenCalledWith(401);
+      expect(res.json).toHaveBeenCalledWith({
+        error: "Authentication required",
+      });
+      expect(firestoreDB.collection).not.toHaveBeenCalled();
     });
   });
 
