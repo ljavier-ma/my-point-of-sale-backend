@@ -17,6 +17,7 @@ const { firestoreDB, productCollection, productReference } = vi.hoisted(() => ({
   },
   productReference: {
     get: vi.fn(),
+    update: vi.fn(),
   },
 }));
 
@@ -33,6 +34,7 @@ import {
   createProductMiddleware,
   productMiddleware,
   productsMiddleware,
+  updateProductMiddleware,
 } from "../middlewares/products.middleware.js";
 
 const productData = {
@@ -83,6 +85,7 @@ function configureFirestore(config: FirestoreConfig = {}): void {
     exists: true,
     id: "product-1",
   });
+  productReference.update.mockResolvedValue(undefined);
   if (config.singleProduct) {
     productReference.get.mockResolvedValue(config.singleProduct);
   }
@@ -261,6 +264,128 @@ describe("productsMiddleware", () => {
     expect(res.status).toHaveBeenCalledWith(404);
     expect(res.json).toHaveBeenCalledWith({
       error: "No store found for this user",
+    });
+  });
+
+  describe("updateProductMiddleware", () => {
+    beforeEach((): void => {
+      vi.clearAllMocks();
+    });
+
+    it("updates all product fields and returns the updated product", async () => {
+      configureFirestore();
+      const updateData: typeof productData = {
+        ...productData,
+        name: "Updated product name",
+        stock: 12,
+      };
+      const req = {
+        body: updateData,
+        firebaseUser: { uid: "user-1" },
+        params: { productId: "product-1" },
+      } as Request<
+        { productId: string },
+        ErrorResponse | ProductResponse,
+        unknown
+      >;
+      const res = createResponse();
+
+      await updateProductMiddleware(req, res, vi.fn());
+
+      expect(productCollection.doc).toHaveBeenCalledWith("product-1");
+      expect(productReference.update).toHaveBeenCalledWith(updateData);
+      expect(res.json).toHaveBeenCalledWith({
+        ...productData,
+        ...updateData,
+        id: "product-1",
+      });
+      expect(res.status).not.toHaveBeenCalled();
+    });
+
+    it("rejects partial update data", async () => {
+      configureFirestore();
+      const req = {
+        body: { stock: 12 },
+        firebaseUser: { uid: "user-1" },
+        params: { productId: "product-1" },
+      } as Request<
+        { productId: string },
+        ErrorResponse | ProductResponse,
+        unknown
+      >;
+      const res = createResponse();
+
+      await updateProductMiddleware(req, res, vi.fn());
+
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(res.json).toHaveBeenCalledWith({ error: "Invalid product data" });
+      expect(productReference.update).not.toHaveBeenCalled();
+    });
+
+    it("rejects invalid field types", async () => {
+      configureFirestore();
+      const req = {
+        body: { ...productData, stock: "12" },
+        firebaseUser: { uid: "user-1" },
+        params: { productId: "product-1" },
+      } as Request<
+        { productId: string },
+        ErrorResponse | ProductResponse,
+        unknown
+      >;
+      const res = createResponse();
+
+      await updateProductMiddleware(req, res, vi.fn());
+
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(res.json).toHaveBeenCalledWith({ error: "Invalid product data" });
+      expect(productReference.update).not.toHaveBeenCalled();
+    });
+
+    it("rejects unexpected fields such as an ID in the body", async () => {
+      configureFirestore();
+      const req = {
+        body: { ...productData, id: "client-id" },
+        firebaseUser: { uid: "user-1" },
+        params: { productId: "product-1" },
+      } as Request<
+        { productId: string },
+        ErrorResponse | ProductResponse,
+        unknown
+      >;
+      const res = createResponse();
+
+      await updateProductMiddleware(req, res, vi.fn());
+
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(res.json).toHaveBeenCalledWith({ error: "Invalid product data" });
+      expect(productReference.update).not.toHaveBeenCalled();
+    });
+
+    it("returns 404 if the product does not exist", async () => {
+      configureFirestore({
+        singleProduct: {
+          data: (): undefined => undefined,
+          exists: false,
+          id: "missing-product",
+        },
+      });
+      const req = {
+        body: productData,
+        firebaseUser: { uid: "user-1" },
+        params: { productId: "missing-product" },
+      } as Request<
+        { productId: string },
+        ErrorResponse | ProductResponse,
+        unknown
+      >;
+      const res = createResponse();
+
+      await updateProductMiddleware(req, res, vi.fn());
+
+      expect(res.status).toHaveBeenCalledWith(404);
+      expect(res.json).toHaveBeenCalledWith({ error: "Product not found" });
+      expect(productReference.update).not.toHaveBeenCalled();
     });
   });
 

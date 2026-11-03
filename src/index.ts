@@ -16,6 +16,7 @@ import {
   createProductMiddleware,
   productMiddleware,
   productsMiddleware,
+  updateProductMiddleware,
 } from "#middlewares/products.middleware.js";
 import { storeMiddleware } from "#middlewares/store.middleware.js";
 import { userMiddleware } from "#middlewares/user.middleware.js";
@@ -51,6 +52,11 @@ app.get<{ productId: string }, ErrorResponse | ProductResponse>(
   "/products/:productId",
   firebaseAuthMiddleware,
   productMiddleware,
+);
+app.patch<{ productId: string }, ErrorResponse | ProductResponse, unknown>(
+  "/products/:productId",
+  firebaseAuthMiddleware,
+  updateProductMiddleware,
 );
 
 app.listen(port, (): void => {

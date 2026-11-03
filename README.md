@@ -52,3 +52,7 @@ ID, and the total number of products in that store:
 JSON object with the product fields shown above, excluding `id`. The server
 creates a document in `stores/{storeId}/products` using a Firestore-generated
 document ID and returns the product with that ID.
+
+`PATCH /products/{productId}` updates one or more product fields in the
+authenticated user's store. The request must contain at least one valid product
+field; the product ID and unrecognized fields cannot be changed.
