@@ -2,16 +2,20 @@ import type { Request, Response } from "express";
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { firestoreDB, productCollection } = vi.hoisted(() => ({
+const { firestoreDB, productCollection, productReference } = vi.hoisted(() => ({
   firestoreDB: {
     collection: vi.fn(),
     getAll: vi.fn(),
   },
   productCollection: {
     count: vi.fn(),
+    doc: vi.fn(),
     get: vi.fn(),
     limit: vi.fn(),
     offset: vi.fn(),
+  },
+  productReference: {
+    get: vi.fn(),
   },
 }));
 
@@ -19,11 +23,15 @@ vi.mock("../config/firebase.js", () => ({ firestoreDB }));
 
 import type {
   ErrorResponse,
+  ProductResponse,
   ProductsQuery,
   ProductsResponse,
 } from "../types/product.js";
 
-import { productsMiddleware } from "../middlewares/products.middleware.js";
+import {
+  productMiddleware,
+  productsMiddleware,
+} from "../middlewares/products.middleware.js";
 
 const productData = {
   barcode: "",
@@ -41,15 +49,22 @@ const productData = {
   unitaryPrice: 273.7,
 };
 
-const createResponse = (): Response<ErrorResponse | ProductsResponse> =>
+const createResponse = (): Response<
+  ErrorResponse | ProductResponse | ProductsResponse
+> =>
   ({
     json: vi.fn(),
     status: vi.fn().mockReturnThis(),
-  }) as unknown as Response<ErrorResponse | ProductsResponse>;
+  }) as unknown as Response<ErrorResponse | ProductResponse | ProductsResponse>;
 
 interface FirestoreConfig {
   membershipExists?: boolean;
   productDocuments?: { data: () => unknown; id: string }[];
+  singleProduct?: {
+    data: () => unknown;
+    exists: boolean;
+    id: string;
+  };
   storeCount?: number;
 }
 
@@ -60,6 +75,15 @@ function configureFirestore(config: FirestoreConfig = {}): void {
   productCollection.offset.mockReturnThis();
   productCollection.limit.mockReturnThis();
   productCollection.get.mockResolvedValue({ docs: productDocuments });
+  productReference.get.mockResolvedValue({
+    data: (): typeof productData => productData,
+    exists: true,
+    id: "product-1",
+  });
+  if (config.singleProduct) {
+    productReference.get.mockResolvedValue(config.singleProduct);
+  }
+  productCollection.doc.mockReturnValue(productReference);
   productCollection.count.mockReturnValue({
     get: vi.fn().mockResolvedValue({
       data: () => ({ count: 15 }),
@@ -73,7 +97,10 @@ function configureFirestore(config: FirestoreConfig = {}): void {
       ref: {
         collection: vi.fn((name: string) =>
           name === "products"
-            ? productCollection
+            ? {
+                ...productCollection,
+                doc: productCollection.doc,
+              }
             : {
                 doc: vi
                   .fn()
@@ -105,6 +132,7 @@ describe("productsMiddleware", () => {
       ],
       storeCount: 2,
     });
+
     const req = {
       firebaseUser: { uid: "user-1" },
       query: { limit: "5", offset: "10" },
@@ -130,6 +158,45 @@ describe("productsMiddleware", () => {
       totalOfProducts: 15,
     });
     expect(res.status).not.toHaveBeenCalled();
+  });
+
+  it("returns a product by ID from the authenticated user's store", async () => {
+    configureFirestore();
+    const req = {
+      firebaseUser: { uid: "user-1" },
+      params: { productId: "product-1" },
+    } as Request<{ productId: string }, ErrorResponse | ProductResponse>;
+    const res = createResponse();
+
+    await productMiddleware(req, res, vi.fn());
+
+    expect(productCollection.doc).toHaveBeenCalledWith("product-1");
+    expect(res.json).toHaveBeenCalledWith({
+      ...productData,
+      id: "product-1",
+    });
+    expect(res.status).not.toHaveBeenCalled();
+  });
+
+  it("returns 404 when the product ID does not exist in the user's store", async () => {
+    configureFirestore({
+      singleProduct: {
+        data: (): undefined => undefined,
+        exists: false,
+        id: "missing-product",
+      },
+    });
+    const req = {
+      firebaseUser: { uid: "user-1" },
+      params: { productId: "missing-product" },
+    } as Request<{ productId: string }, ErrorResponse | ProductResponse>;
+    const res = createResponse();
+
+    await productMiddleware(req, res, vi.fn());
+
+    expect(productCollection.doc).toHaveBeenCalledWith("missing-product");
+    expect(res.status).toHaveBeenCalledWith(404);
+    expect(res.json).toHaveBeenCalledWith({ error: "Product not found" });
   });
 
   it("returns 401 when the request is not authenticated", async () => {
