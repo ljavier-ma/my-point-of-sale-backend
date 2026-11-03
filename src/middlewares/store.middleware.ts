@@ -3,6 +3,7 @@ import type { Request, RequestHandler, Response } from "express";
 import type { StoreResponse } from "../types/store.js";
 
 import { firestoreDB } from "../config/firebase.js";
+import { getAuthenticatedUserId } from "../utils/auth.js";
 
 function isStoreResponse(value: unknown): value is StoreResponse {
   return (
@@ -19,7 +20,7 @@ export const storeMiddleware: RequestHandler = async (
   req: Request,
   res: Response,
 ): Promise<void> => {
-  const userId: string | undefined = req.firebaseUser?.uid;
+  const userId: string | undefined = getAuthenticatedUserId(req);
   if (!userId) {
     res.status(401).json({ error: "Authentication required" });
     return;

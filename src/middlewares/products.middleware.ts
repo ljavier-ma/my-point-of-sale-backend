@@ -19,6 +19,7 @@ import type {
 } from "../types/product.js";
 
 import { firestoreDB } from "../config/firebase.js";
+import { getAuthenticatedUserId } from "../utils/auth.js";
 
 const productFields = [
   "barcode",
@@ -84,7 +85,7 @@ export const productsMiddleware: RequestHandler<
   >,
   res: Response<ErrorResponse | ProductsResponse>,
 ): Promise<void> => {
-  const userId: string | undefined = req.firebaseUser?.uid;
+  const userId: string | undefined = getAuthenticatedUserId(req);
   if (!userId) {
     res.status(401).json({ error: "Authentication required" });
     return;
@@ -149,5 +150,72 @@ export const productsMiddleware: RequestHandler<
   } catch (error) {
     console.error("Failed to fetch products from Firestore:", error);
     res.status(500).json({ error: "Failed to fetch products" });
+  }
+};
+
+interface ProductParams extends ParamsDictionary {
+  productId: string;
+}
+
+export const productMiddleware: RequestHandler<
+  ProductParams,
+  ErrorResponse | ProductResponse
+> = async (
+  req: Request<ProductParams, ErrorResponse | ProductResponse>,
+  res: Response<ErrorResponse | ProductResponse>,
+): Promise<void> => {
+  const userId: string | undefined = getAuthenticatedUserId(req);
+  if (!userId) {
+    res.status(401).json({ error: "Authentication required" });
+    return;
+  }
+
+  try {
+    const stores = await firestoreDB.collection("stores").get();
+    if (stores.empty) {
+      res.status(404).json({ error: "No store found for this user" });
+      return;
+    }
+
+    const userDocuments = await firestoreDB.getAll(
+      ...stores.docs.map((store: QueryDocumentSnapshot): DocumentReference =>
+        store.ref.collection("users").doc(userId),
+      ),
+    );
+    const storeIndex: number = userDocuments.findIndex(
+      (userDocument: DocumentSnapshot): boolean => userDocument.exists,
+    );
+    if (storeIndex === -1) {
+      res.status(404).json({ error: "No store found for this user" });
+      return;
+    }
+
+    const productDocument = await stores.docs[storeIndex].ref
+      .collection("products")
+      .doc(req.params.productId)
+      .get();
+    if (!productDocument.exists) {
+      res.status(404).json({ error: "Product not found" });
+      return;
+    }
+
+    const productData: unknown = productDocument.data();
+    if (!isProductData(productData)) {
+      console.error(
+        "Product document is missing valid product fields:",
+        productDocument.id,
+      );
+      res.status(500).json({ error: "Failed to fetch product" });
+      return;
+    }
+
+    const response: ProductResponse = {
+      ...productData,
+      id: productDocument.id,
+    };
+    res.json(response);
+  } catch (error) {
+    console.error("Failed to fetch product from Firestore:", error);
+    res.status(500).json({ error: "Failed to fetch product" });
   }
 };
