@@ -71,6 +71,26 @@ function parsePaginationValue(
     : undefined;
 }
 
+function pickProductData(
+  value: Omit<ProductResponse, "id">,
+): Omit<ProductResponse, "id"> {
+  return {
+    barcode: value.barcode,
+    code: value.code,
+    eighthLiterPrice: value.eighthLiterPrice,
+    halfLiterPrice: value.halfLiterPrice,
+    idealAmount: value.idealAmount,
+    isPaint: value.isPaint,
+    literPrice: value.literPrice,
+    lowQuantity: value.lowQuantity,
+    name: value.name,
+    publicPrice: value.publicPrice,
+    quarterLiterPrice: value.quarterLiterPrice,
+    stock: value.stock,
+    unitaryPrice: value.unitaryPrice,
+  };
+}
+
 export const productsMiddleware: RequestHandler<
   ParamsDictionary,
   ErrorResponse | ProductsResponse,
@@ -150,6 +170,60 @@ export const productsMiddleware: RequestHandler<
   } catch (error) {
     console.error("Failed to fetch products from Firestore:", error);
     res.status(500).json({ error: "Failed to fetch products" });
+  }
+};
+
+export const createProductMiddleware: RequestHandler<
+  ParamsDictionary,
+  ErrorResponse | ProductResponse,
+  unknown
+> = async (
+  req: Request<ParamsDictionary, ErrorResponse | ProductResponse, unknown>,
+  res: Response<ErrorResponse | ProductResponse>,
+): Promise<void> => {
+  const userId: string | undefined = getAuthenticatedUserId(req);
+  if (!userId) {
+    res.status(401).json({ error: "Authentication required" });
+    return;
+  }
+
+  if (!isProductData(req.body)) {
+    res.status(400).json({ error: "Invalid product data" });
+    return;
+  }
+
+  try {
+    const stores = await firestoreDB.collection("stores").get();
+    if (stores.empty) {
+      res.status(404).json({ error: "No store found for this user" });
+      return;
+    }
+
+    const userDocuments = await firestoreDB.getAll(
+      ...stores.docs.map((store: QueryDocumentSnapshot): DocumentReference =>
+        store.ref.collection("users").doc(userId),
+      ),
+    );
+    const storeIndex: number = userDocuments.findIndex(
+      (userDocument: DocumentSnapshot): boolean => userDocument.exists,
+    );
+    if (storeIndex === -1) {
+      res.status(404).json({ error: "No store found for this user" });
+      return;
+    }
+
+    const productData: Omit<ProductResponse, "id"> = pickProductData(req.body);
+    const productDocument = await stores.docs[storeIndex].ref
+      .collection("products")
+      .add(productData);
+    const response: ProductResponse = {
+      ...productData,
+      id: productDocument.id,
+    };
+    res.status(201).json(response);
+  } catch (error) {
+    console.error("Failed to create product in Firestore:", error);
+    res.status(500).json({ error: "Failed to create product" });
   }
 };
 

@@ -13,6 +13,7 @@ import type { StoreResponse } from "#types/store.js";
 import type { UserResponse } from "#types/user.js";
 
 import {
+  createProductMiddleware,
   productMiddleware,
   productsMiddleware,
 } from "#middlewares/products.middleware.js";
@@ -22,6 +23,8 @@ import { firebaseAuthMiddleware } from "#services/firebase-auth.service.js";
 
 const app: Express = express();
 const port: string = process.env.PORT ?? "9001";
+
+app.use(express.json());
 
 app.get<ParamsDictionary, StoreResponse>(
   "/store",
@@ -39,6 +42,11 @@ app.get<
   unknown,
   ProductsQuery
 >("/products", firebaseAuthMiddleware, productsMiddleware);
+app.post<ParamsDictionary, ErrorResponse | ProductResponse, unknown>(
+  "/products",
+  firebaseAuthMiddleware,
+  createProductMiddleware,
+);
 app.get<{ productId: string }, ErrorResponse | ProductResponse>(
   "/products/:productId",
   firebaseAuthMiddleware,
