@@ -2,6 +2,14 @@
 
 Express app for managment of the backend of the point of sale
 
+## Local browser requests
+
+The API allows browser requests from `http://localhost`, `http://127.0.0.1`,
+and `http://[::1]`, including origins with a port such as
+`http://localhost:3000`. CORS preflight requests allow the API's `GET`, `POST`,
+`PATCH`, and `DELETE` methods and the `Authorization` and `Content-Type`
+headers. API routes still require their normal authentication.
+
 ## Store endpoint
 
 `GET /store` requires a Firebase ID token in the `Authorization` header:
