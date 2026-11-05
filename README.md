@@ -42,7 +42,6 @@ ID, and the total number of products in that store:
       "eighthLiterPrice": 36,
       "halfLiterPrice": 102,
       "idealAmount": 2,
-      "isPaint": true,
       "literPrice": 167,
       "lowQuantity": 1,
       "name": "ESMALTE S.D. ALUMINIO FINO 3.785 LTS",

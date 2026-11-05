@@ -11,7 +11,6 @@ export interface ProductResponse {
   halfLiterPrice: number;
   id: string;
   idealAmount: number;
-  isPaint: boolean;
   literPrice: number;
   lowQuantity: number;
   name: string;
