@@ -36,6 +36,12 @@ const productFields = [
   "unitaryPrice",
 ] as const satisfies readonly (keyof Omit<ProductResponse, "id">)[];
 
+const uniqueProductFields = ["barcode", "code", "name"] as const;
+
+type CreateProductInput = Partial<Omit<ProductResponse, "id">> & {
+  name: string;
+};
+
 function isCompleteProductInput(
   value: unknown,
 ): value is Omit<ProductResponse, "id"> {
@@ -52,6 +58,24 @@ function isCompleteProductInput(
   return productFields.every(
     (field: (typeof productFields)[number]): boolean =>
       Object.hasOwn(data, field) && isValidProductField(field, data[field]),
+  );
+}
+
+function isCreateProductInput(value: unknown): value is CreateProductInput {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    return false;
+  }
+
+  const data: Record<string, unknown> = value as Record<string, unknown>;
+  return (
+    Object.hasOwn(data, "name") &&
+    isValidProductField("name", data.name) &&
+    productFields.every(
+      (field: (typeof productFields)[number]): boolean =>
+        field === "name" ||
+        !Object.hasOwn(data, field) ||
+        isValidProductField(field, data[field]),
+    )
   );
 }
 
@@ -72,10 +96,32 @@ function isValidProductField(
   field: (typeof productFields)[number],
   value: unknown,
 ): boolean {
+  if (value === null && field !== "name") {
+    return true;
+  }
   if (field === "barcode" || field === "code" || field === "name") {
     return typeof value === "string";
   }
   return typeof value === "number" && Number.isFinite(value);
+}
+
+function normalizeCreateProductInput(
+  value: CreateProductInput,
+): Omit<ProductResponse, "id"> {
+  return {
+    barcode: value.barcode ?? null,
+    code: value.code ?? null,
+    eighthLiterPrice: value.eighthLiterPrice ?? null,
+    halfLiterPrice: value.halfLiterPrice ?? null,
+    idealAmount: value.idealAmount ?? null,
+    literPrice: value.literPrice ?? null,
+    lowQuantity: value.lowQuantity ?? null,
+    name: value.name,
+    publicPrice: value.publicPrice ?? null,
+    quarterLiterPrice: value.quarterLiterPrice ?? null,
+    stock: value.stock ?? null,
+    unitaryPrice: value.unitaryPrice ?? null,
+  };
 }
 
 function parsePaginationValue(
@@ -207,7 +253,7 @@ export const createProductMiddleware: RequestHandler<
     return;
   }
 
-  if (!isProductData(req.body)) {
+  if (!isCreateProductInput(req.body)) {
     res.status(400).json({ error: "Invalid product data" });
     return;
   }
@@ -232,10 +278,32 @@ export const createProductMiddleware: RequestHandler<
       return;
     }
 
-    const productData: Omit<ProductResponse, "id"> = pickProductData(req.body);
-    const productDocument = await stores.docs[storeIndex].ref
-      .collection("products")
-      .add(productData);
+    const productsCollection =
+      stores.docs[storeIndex].ref.collection("products");
+    const productData: Omit<ProductResponse, "id"> =
+      normalizeCreateProductInput(req.body);
+    const duplicates = await Promise.all(
+      uniqueProductFields.map(async (field) => {
+        const value = productData[field];
+        if (value === null) {
+          return false;
+        }
+
+        const matches = await productsCollection
+          .where(field, "==", value)
+          .limit(1)
+          .get();
+        return !matches.empty;
+      }),
+    );
+    if (duplicates.some(Boolean)) {
+      res.status(409).json({
+        error: "A product with the same barcode, code, or name already exists",
+      });
+      return;
+    }
+
+    const productDocument = await productsCollection.add(productData);
     const response: ProductResponse = {
       ...productData,
       id: productDocument.id,
