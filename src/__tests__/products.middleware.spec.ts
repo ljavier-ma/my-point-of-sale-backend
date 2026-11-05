@@ -43,14 +43,9 @@ import {
 const productData = {
   barcode: "",
   code: "330750.51",
-  eighthLiterPrice: 36,
-  halfLiterPrice: 102,
   idealAmount: 2,
-  literPrice: 167,
   lowQuantity: 1,
   name: "ESMALTE S.D. ALUMINIO FINO 3.785 LTS",
-  publicPrice: 397,
-  quarterLiterPrice: 62,
   stock: 3,
   unitaryPrice: 273.7,
 };
@@ -212,7 +207,17 @@ describe("productsMiddleware", () => {
   it("returns paginated products, their Firestore IDs, and the total count", async () => {
     configureFirestore({
       productDocuments: [
-        { data: (): typeof productData => productData, id: "product-1" },
+        {
+          data: (): Record<string, unknown> => ({
+            ...productData,
+            eighthLiterPrice: 36,
+            halfLiterPrice: 102,
+            literPrice: 167,
+            publicPrice: 397,
+            quarterLiterPrice: 62,
+          }),
+          id: "product-1",
+        },
       ],
       storeCount: 2,
     });
@@ -508,14 +513,9 @@ describe("productsMiddleware", () => {
       const productWithNullFields = {
         barcode: null,
         code: null,
-        eighthLiterPrice: null,
-        halfLiterPrice: null,
         idealAmount: null,
-        literPrice: null,
         lowQuantity: null,
         name: "New product",
-        publicPrice: null,
-        quarterLiterPrice: null,
         stock: null,
         unitaryPrice: null,
       };

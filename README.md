@@ -39,14 +39,9 @@ ID, and the total number of products in that store:
       "id": "product-document-id",
       "barcode": "",
       "code": "330750.51",
-      "eighthLiterPrice": 36,
-      "halfLiterPrice": 102,
       "idealAmount": 2,
-      "literPrice": 167,
       "lowQuantity": 1,
       "name": "ESMALTE S.D. ALUMINIO FINO 3.785 LTS",
-      "publicPrice": 397,
-      "quarterLiterPrice": 62,
       "stock": 3,
       "unitaryPrice": 273.7
     }

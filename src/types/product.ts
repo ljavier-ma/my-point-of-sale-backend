@@ -7,15 +7,10 @@ export interface ErrorResponse {
 export interface ProductResponse {
   barcode: null | string;
   code: null | string;
-  eighthLiterPrice: null | number;
-  halfLiterPrice: null | number;
   id: string;
   idealAmount: null | number;
-  literPrice: null | number;
   lowQuantity: null | number;
   name: string;
-  publicPrice: null | number;
-  quarterLiterPrice: null | number;
   stock: null | number;
   unitaryPrice: null | number;
 }
