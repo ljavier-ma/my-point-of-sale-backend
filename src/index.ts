@@ -26,6 +26,30 @@ import { firebaseAuthMiddleware } from "#services/firebase-auth.service.js";
 const app: Express = express();
 const port: string = process.env.PORT ?? "9001";
 
+app.use((req, res, next): void => {
+  const origin: string | undefined = req.get("origin");
+
+  if (
+    origin &&
+    /^https?:\/\/(?:localhost|127\.0\.0\.1|\[::1\])(?::\d+)?$/i.test(origin)
+  ) {
+    res.setHeader("Access-Control-Allow-Origin", origin);
+    res.vary("Origin");
+    res.setHeader(
+      "Access-Control-Allow-Methods",
+      "GET,POST,PATCH,DELETE,OPTIONS",
+    );
+    res.setHeader("Access-Control-Allow-Headers", "Authorization,Content-Type");
+  }
+
+  if (req.method === "OPTIONS") {
+    res.sendStatus(204);
+    return;
+  }
+
+  next();
+});
+
 app.use(express.json());
 
 app.get<ParamsDictionary, StoreResponse>(
