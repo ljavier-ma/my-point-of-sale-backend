@@ -24,14 +24,9 @@ import { getAuthenticatedUserId } from "../utils/auth.js";
 const productFields = [
   "barcode",
   "code",
-  "eighthLiterPrice",
-  "halfLiterPrice",
   "idealAmount",
-  "literPrice",
   "lowQuantity",
   "name",
-  "publicPrice",
-  "quarterLiterPrice",
   "stock",
   "unitaryPrice",
 ] as const satisfies readonly (keyof Omit<ProductResponse, "id">)[];
@@ -111,14 +106,9 @@ function normalizeCreateProductInput(
   return {
     barcode: value.barcode ?? null,
     code: value.code ?? null,
-    eighthLiterPrice: value.eighthLiterPrice ?? null,
-    halfLiterPrice: value.halfLiterPrice ?? null,
     idealAmount: value.idealAmount ?? null,
-    literPrice: value.literPrice ?? null,
     lowQuantity: value.lowQuantity ?? null,
     name: value.name,
-    publicPrice: value.publicPrice ?? null,
-    quarterLiterPrice: value.quarterLiterPrice ?? null,
     stock: value.stock ?? null,
     unitaryPrice: value.unitaryPrice ?? null,
   };
@@ -144,14 +134,9 @@ function pickProductData(
   return {
     barcode: value.barcode,
     code: value.code,
-    eighthLiterPrice: value.eighthLiterPrice,
-    halfLiterPrice: value.halfLiterPrice,
     idealAmount: value.idealAmount,
-    literPrice: value.literPrice,
     lowQuantity: value.lowQuantity,
     name: value.name,
-    publicPrice: value.publicPrice,
-    quarterLiterPrice: value.quarterLiterPrice,
     stock: value.stock,
     unitaryPrice: value.unitaryPrice,
   };
@@ -225,7 +210,10 @@ export const productsMiddleware: RequestHandler<
         return;
       }
 
-      products.push({ ...productData, id: productDocument.id });
+      products.push({
+        ...pickProductData(productData),
+        id: productDocument.id,
+      });
     }
 
     const response: ProductsResponse = {
@@ -305,7 +293,7 @@ export const createProductMiddleware: RequestHandler<
 
     const productDocument = await productsCollection.add(productData);
     const response: ProductResponse = {
-      ...productData,
+      ...pickProductData(productData),
       id: productDocument.id,
     };
     res.status(201).json(response);
@@ -445,8 +433,7 @@ export const updateProductMiddleware: RequestHandler<
     );
     await productReference.update(updatedProductData);
     const response: ProductResponse = {
-      ...existingData,
-      ...updatedProductData,
+      ...pickProductData({ ...existingData, ...updatedProductData }),
       id: productDocument.id,
     };
     res.json(response);
