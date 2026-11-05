@@ -14,6 +14,7 @@ const { firestoreDB, productCollection, productReference } = vi.hoisted(() => ({
     get: vi.fn(),
     limit: vi.fn(),
     offset: vi.fn(),
+    where: vi.fn(),
   },
   productReference: {
     delete: vi.fn(),
@@ -82,6 +83,21 @@ function configureFirestore(config: FirestoreConfig = {}): void {
   productCollection.limit.mockReturnThis();
   productCollection.add.mockResolvedValue({ id: "generated-product-id" });
   productCollection.get.mockResolvedValue({ docs: productDocuments });
+  productCollection.where.mockImplementation(
+    (field: keyof typeof productData, _operator: string, value: unknown) => ({
+      get: vi.fn().mockResolvedValue({
+        empty: !productDocuments.some((document) => {
+          const data: unknown = document.data();
+          return (
+            typeof data === "object" &&
+            data !== null &&
+            (data as Record<string, unknown>)[field] === value
+          );
+        }),
+      }),
+      limit: vi.fn().mockReturnThis(),
+    }),
+  );
   productReference.get.mockResolvedValue({
     data: (): typeof productData => productData,
     exists: true,
@@ -477,6 +493,94 @@ describe("productsMiddleware", () => {
         id: "generated-product-id",
       });
     });
+
+    it("creates a product with only its name and stores other fields as null", async () => {
+      configureFirestore();
+      const req = {
+        body: { name: "New product" },
+        firebaseUser: { uid: "user-1" },
+      } as Request<
+        Record<string, never>,
+        ErrorResponse | ProductResponse,
+        unknown
+      >;
+      const res = createResponse();
+      const productWithNullFields = {
+        barcode: null,
+        code: null,
+        eighthLiterPrice: null,
+        halfLiterPrice: null,
+        idealAmount: null,
+        literPrice: null,
+        lowQuantity: null,
+        name: "New product",
+        publicPrice: null,
+        quarterLiterPrice: null,
+        stock: null,
+        unitaryPrice: null,
+      };
+
+      await createProductMiddleware(req, res, vi.fn());
+
+      expect(productCollection.add).toHaveBeenCalledWith(productWithNullFields);
+      expect(res.status).toHaveBeenCalledWith(201);
+      expect(res.json).toHaveBeenCalledWith({
+        ...productWithNullFields,
+        id: "generated-product-id",
+      });
+    });
+
+    it("rejects a product without a name", async () => {
+      configureFirestore();
+      const req = {
+        body: { barcode: "12345" },
+        firebaseUser: { uid: "user-1" },
+      } as Request<
+        Record<string, never>,
+        ErrorResponse | ProductResponse,
+        unknown
+      >;
+      const res = createResponse();
+
+      await createProductMiddleware(req, res, vi.fn());
+
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(res.json).toHaveBeenCalledWith({ error: "Invalid product data" });
+      expect(productCollection.add).not.toHaveBeenCalled();
+    });
+
+    it.each(["barcode", "code", "name"] as const)(
+      "rejects a product with a duplicate %s",
+      async (field) => {
+        configureFirestore({
+          productDocuments: [
+            {
+              data: (): typeof productData => productData,
+              id: "existing-product",
+            },
+          ],
+        });
+        const req = {
+          body: { ...productData, id: "client-id" },
+          firebaseUser: { uid: "user-1" },
+        } as Request<
+          Record<string, never>,
+          ErrorResponse | ProductResponse,
+          unknown
+        >;
+        const res = createResponse();
+
+        await createProductMiddleware(req, res, vi.fn());
+
+        expect(productCollection.where).toHaveBeenCalledWith(
+          field,
+          "==",
+          productData[field],
+        );
+        expect(res.status).toHaveBeenCalledWith(409);
+        expect(productCollection.add).not.toHaveBeenCalled();
+      },
+    );
 
     it("returns 400 when the product data is invalid", async () => {
       configureFirestore();

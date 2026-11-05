@@ -5,19 +5,19 @@ export interface ErrorResponse {
 }
 
 export interface ProductResponse {
-  barcode: string;
-  code: string;
-  eighthLiterPrice: number;
-  halfLiterPrice: number;
+  barcode: null | string;
+  code: null | string;
+  eighthLiterPrice: null | number;
+  halfLiterPrice: null | number;
   id: string;
-  idealAmount: number;
-  literPrice: number;
-  lowQuantity: number;
+  idealAmount: null | number;
+  literPrice: null | number;
+  lowQuantity: null | number;
   name: string;
-  publicPrice: number;
-  quarterLiterPrice: number;
-  stock: number;
-  unitaryPrice: number;
+  publicPrice: null | number;
+  quarterLiterPrice: null | number;
+  stock: null | number;
+  unitaryPrice: null | number;
 }
 
 export interface ProductsQuery extends Query {

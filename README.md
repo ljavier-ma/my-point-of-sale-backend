@@ -56,9 +56,12 @@ ID, and the total number of products in that store:
 ```
 
 `POST /products` uses the same Firebase ID token and store membership. Send a
-JSON object with the product fields shown above, excluding `id`. The server
-creates a document in `stores/{storeId}/products` using a Firestore-generated
-document ID and returns the product with that ID.
+JSON object with the required `name` and any optional product fields shown
+above, excluding `id`. Omitted optional fields are stored as `null`. Barcode,
+code, and name must each be unique among products in the authenticated user's
+store. The server creates a document in `stores/{storeId}/products` using a
+Firestore-generated document ID and returns the product with that ID. A
+duplicate barcode, code, or name returns `409 Conflict`.
 
 `PATCH /products/{productId}` updates one or more product fields in the
 authenticated user's store. The request must contain at least one valid product
