@@ -27,7 +27,6 @@ const productFields = [
   "eighthLiterPrice",
   "halfLiterPrice",
   "idealAmount",
-  "isPaint",
   "literPrice",
   "lowQuantity",
   "name",
@@ -76,9 +75,6 @@ function isValidProductField(
   if (field === "barcode" || field === "code" || field === "name") {
     return typeof value === "string";
   }
-  if (field === "isPaint") {
-    return typeof value === "boolean";
-  }
   return typeof value === "number" && Number.isFinite(value);
 }
 
@@ -105,7 +101,6 @@ function pickProductData(
     eighthLiterPrice: value.eighthLiterPrice,
     halfLiterPrice: value.halfLiterPrice,
     idealAmount: value.idealAmount,
-    isPaint: value.isPaint,
     literPrice: value.literPrice,
     lowQuantity: value.lowQuantity,
     name: value.name,
