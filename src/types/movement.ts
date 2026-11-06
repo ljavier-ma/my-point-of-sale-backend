@@ -5,8 +5,8 @@ export interface ErrorResponse {
 }
 
 export interface MovementProductDetail {
-  price: number;
   productId: string;
+  productTotal: number;
   quantity: number;
 }
 

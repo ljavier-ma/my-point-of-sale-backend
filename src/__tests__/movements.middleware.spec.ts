@@ -94,8 +94,8 @@ describe("movementsMiddleware", () => {
     const movementTime = { nanoseconds: 456, seconds: 123 };
     const productDetails = [
       {
-        price: 18.5,
         productId: "product-1",
+        productTotal: 37,
         quantity: 2,
         unrecognized: "not returned",
       },
@@ -138,7 +138,7 @@ describe("movementsMiddleware", () => {
         {
           id: "movement-1",
           productDetails: [
-            { price: 18.5, productId: "product-1", quantity: 2 },
+            { productId: "product-1", productTotal: 37, quantity: 2 },
           ],
           time: movementTime,
         },
@@ -218,7 +218,7 @@ describe("movementsMiddleware", () => {
         {
           data: (): Record<string, unknown> => ({
             productDetails: [
-              { price: "18.5", productId: "product-1", quantity: 2 },
+              { productId: "product-1", productTotal: "37", quantity: 2 },
             ],
             time: "today",
           }),
