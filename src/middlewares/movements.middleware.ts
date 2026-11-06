@@ -45,8 +45,8 @@ function isMovementProductDetail(
 
   const detail: Record<string, unknown> = value as Record<string, unknown>;
   return (
-    typeof detail.price === "number" &&
-    Number.isFinite(detail.price) &&
+    typeof detail.productTotal === "number" &&
+    Number.isFinite(detail.productTotal) &&
     typeof detail.productId === "string" &&
     typeof detail.quantity === "number" &&
     Number.isFinite(detail.quantity)
@@ -137,9 +137,9 @@ export const movementsMiddleware: RequestHandler<
       movements.push({
         id: movementDocument.id,
         productDetails: movementData.productDetails.map(
-          ({ price, productId, quantity }) => ({
-            price,
+          ({ productId, productTotal, quantity }) => ({
             productId,
+            productTotal,
             quantity,
           }),
         ),

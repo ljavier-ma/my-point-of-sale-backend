@@ -83,7 +83,7 @@ count:
       "time": "Firebase movement time",
       "productDetails": [
         {
-          "price": 0,
+          "productTotal": 0,
           "productId": "string",
           "quantity": 0
         }
