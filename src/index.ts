@@ -4,6 +4,11 @@ import type { ParamsDictionary } from "express-serve-static-core";
 import express, { type Express } from "express";
 
 import type {
+  ErrorResponse as MovementErrorResponse,
+  MovementsQuery,
+  MovementsResponse,
+} from "#types/movement.js";
+import type {
   ErrorResponse,
   ProductResponse,
   ProductsQuery,
@@ -12,6 +17,7 @@ import type {
 import type { StoreResponse } from "#types/store.js";
 import type { UserResponse } from "#types/user.js";
 
+import { movementsMiddleware } from "#middlewares/movements.middleware.js";
 import {
   createProductMiddleware,
   deleteProductMiddleware,
@@ -62,6 +68,12 @@ app.get<ParamsDictionary, UserResponse>(
   firebaseAuthMiddleware,
   userMiddleware,
 );
+app.get<
+  ParamsDictionary,
+  MovementErrorResponse | MovementsResponse,
+  unknown,
+  MovementsQuery
+>("/movements", firebaseAuthMiddleware, movementsMiddleware);
 app.get<
   ParamsDictionary,
   ErrorResponse | ProductsResponse,

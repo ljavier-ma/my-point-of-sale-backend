@@ -64,3 +64,32 @@ field; the product ID and unrecognized fields cannot be changed.
 
 `DELETE /product/{productId}` deletes the specified product from the
 authenticated user's store and returns `204 No Content` when successful.
+
+## Movements endpoint
+
+`GET /movements?offset=0&limit=20` requires a Firebase ID token in the
+`Authorization` header as a bearer token. It reads a page of movements from
+the authenticated user's `stores/{storeId}/movements` collection.
+`offset` is a zero-based index and must be at least `0`; `limit` must be at
+least `1`. Each movement includes its Firestore document ID as `id`, the stored
+`time`, and a `productDetails` array. The response includes the total movement
+count:
+
+```json
+{
+  "movements": [
+    {
+      "id": "movement-document-id",
+      "time": "Firebase movement time",
+      "productDetails": [
+        {
+          "price": 0,
+          "productId": "string",
+          "quantity": 0
+        }
+      ]
+    }
+  ],
+  "totalOfMovements": 1
+}
+```
