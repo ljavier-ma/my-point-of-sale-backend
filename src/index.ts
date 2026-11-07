@@ -13,6 +13,7 @@ import type {
   ProductResponse,
   ProductsQuery,
   ProductsResponse,
+  ProductsSearchQuery,
 } from "#types/product.js";
 import type { StoreResponse } from "#types/store.js";
 import type { UserResponse } from "#types/user.js";
@@ -23,6 +24,7 @@ import {
   deleteProductMiddleware,
   productMiddleware,
   productsMiddleware,
+  searchProductsMiddleware,
   updateProductMiddleware,
 } from "#middlewares/products.middleware.js";
 import { storeMiddleware } from "#middlewares/store.middleware.js";
@@ -80,6 +82,12 @@ app.get<
   unknown,
   ProductsQuery
 >("/products", firebaseAuthMiddleware, productsMiddleware);
+app.get<
+  ParamsDictionary,
+  ErrorResponse | ProductResponse[],
+  unknown,
+  ProductsSearchQuery
+>("/products/search", firebaseAuthMiddleware, searchProductsMiddleware);
 app.post<ParamsDictionary, ErrorResponse | ProductResponse, unknown>(
   "/products",
   firebaseAuthMiddleware,
