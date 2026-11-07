@@ -284,19 +284,15 @@ export const createMovementMiddleware: RequestHandler<
           }
 
           const storedStock: unknown = Reflect.get(productData, "stock");
-          let currentStock: number;
-          if (storedStock === null) {
-            currentStock = 0;
-          } else if (
-            typeof storedStock === "number" &&
-            Number.isFinite(storedStock) &&
-            storedStock >= 0
+          if (
+            typeof storedStock !== "number" ||
+            !Number.isFinite(storedStock) ||
+            storedStock < 0
           ) {
-            currentStock = storedStock;
-          } else {
             return { reason: "invalid-product-stock", success: false };
           }
 
+          const currentStock: number = storedStock;
           const detail = productDetails[index];
           const updatedStock = movementData.isMovementAPurchase
             ? currentStock + detail.quantity
