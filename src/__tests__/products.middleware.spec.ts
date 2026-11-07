@@ -30,6 +30,7 @@ import type {
   ProductResponse,
   ProductsQuery,
   ProductsResponse,
+  ProductsSearchQuery,
 } from "../types/product.js";
 
 import {
@@ -37,6 +38,7 @@ import {
   deleteProductMiddleware,
   productMiddleware,
   productsMiddleware,
+  searchProductsMiddleware,
   updateProductMiddleware,
 } from "../middlewares/products.middleware.js";
 
@@ -51,13 +53,15 @@ const productData = {
 };
 
 const createResponse = (): Response<
-  ErrorResponse | ProductResponse | ProductsResponse
+  ErrorResponse | ProductResponse | ProductResponse[] | ProductsResponse
 > =>
   ({
     end: vi.fn(),
     json: vi.fn(),
     status: vi.fn().mockReturnThis(),
-  }) as unknown as Response<ErrorResponse | ProductResponse | ProductsResponse>;
+  }) as unknown as Response<
+    ErrorResponse | ProductResponse | ProductResponse[] | ProductsResponse
+  >;
 
 interface FirestoreConfig {
   membershipExists?: boolean;
@@ -140,6 +144,69 @@ function configureFirestore(config: FirestoreConfig = {}): void {
     })),
   );
 }
+
+describe("searchProductsMiddleware", () => {
+  beforeEach((): void => {
+    vi.clearAllMocks();
+  });
+
+  it("returns products whose names contain the query, ignoring case", async () => {
+    configureFirestore({
+      productDocuments: [
+        {
+          data: (): typeof productData => productData,
+          id: "product-1",
+        },
+        {
+          data: (): typeof productData => ({
+            ...productData,
+            name: "Other product",
+          }),
+          id: "product-2",
+        },
+      ],
+      storeCount: 2,
+    });
+    const req = {
+      firebaseUser: { uid: "user-1" },
+      query: { name: "aluminio fino" },
+    } as Request<
+      Record<string, never>,
+      ErrorResponse | ProductResponse[],
+      unknown,
+      ProductsSearchQuery
+    >;
+    const res = createResponse();
+
+    await searchProductsMiddleware(req, res, vi.fn());
+
+    expect(res.json).toHaveBeenCalledWith([
+      { ...productData, id: "product-1" },
+    ]);
+    expect(res.status).not.toHaveBeenCalled();
+  });
+
+  it("returns 400 when the name query parameter is missing or blank", async () => {
+    const req = {
+      firebaseUser: { uid: "user-1" },
+      query: { name: " " },
+    } as Request<
+      Record<string, never>,
+      ErrorResponse | ProductResponse[],
+      unknown,
+      ProductsSearchQuery
+    >;
+    const res = createResponse();
+
+    await searchProductsMiddleware(req, res, vi.fn());
+
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "A non-empty name query parameter is required",
+    });
+    expect(firestoreDB.collection).not.toHaveBeenCalled();
+  });
+});
 
 describe("deleteProductMiddleware", () => {
   beforeEach((): void => {

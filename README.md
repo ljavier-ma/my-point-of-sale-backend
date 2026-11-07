@@ -50,6 +50,11 @@ ID, and the total number of products in that store:
 }
 ```
 
+`GET /products/search?name=aluminio` searches for the provided text anywhere
+within product names in the authenticated user's store. Matching is
+case-insensitive, and the response is an array of matching products with their
+Firestore IDs. A non-empty `name` query parameter is required.
+
 `POST /products` uses the same Firebase ID token and store membership. Send a
 JSON object with the required `name` and any optional product fields shown
 above, excluding `id`. Omitted optional fields are stored as `null`. Barcode,

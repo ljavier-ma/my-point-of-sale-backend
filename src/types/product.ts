@@ -24,3 +24,7 @@ export interface ProductsResponse {
   products: ProductResponse[];
   totalOfProducts: number;
 }
+
+export interface ProductsSearchQuery extends Query {
+  name?: string;
+}

@@ -16,6 +16,7 @@ import type {
   ProductResponse,
   ProductsQuery,
   ProductsResponse,
+  ProductsSearchQuery,
 } from "../types/product.js";
 
 import { firestoreDB } from "../config/firebase.js";
@@ -224,6 +225,87 @@ export const productsMiddleware: RequestHandler<
   } catch (error) {
     console.error("Failed to fetch products from Firestore:", error);
     res.status(500).json({ error: "Failed to fetch products" });
+  }
+};
+
+export const searchProductsMiddleware: RequestHandler<
+  ParamsDictionary,
+  ErrorResponse | ProductResponse[],
+  unknown,
+  ProductsSearchQuery
+> = async (
+  req: Request<
+    ParamsDictionary,
+    ErrorResponse | ProductResponse[],
+    unknown,
+    ProductsSearchQuery
+  >,
+  res: Response<ErrorResponse | ProductResponse[]>,
+): Promise<void> => {
+  const userId: string | undefined = getAuthenticatedUserId(req);
+  if (!userId) {
+    res.status(401).json({ error: "Authentication required" });
+    return;
+  }
+
+  const searchNameValue: unknown = Reflect.get(req.query, "name");
+  if (typeof searchNameValue !== "string" || !searchNameValue.trim()) {
+    res
+      .status(400)
+      .json({ error: "A non-empty name query parameter is required" });
+    return;
+  }
+  const searchName: string = searchNameValue.trim();
+
+  try {
+    const stores = await firestoreDB.collection("stores").get();
+    if (stores.empty) {
+      res.status(404).json({ error: "No store found for this user" });
+      return;
+    }
+
+    const userDocuments = await firestoreDB.getAll(
+      ...stores.docs.map((store: QueryDocumentSnapshot): DocumentReference =>
+        store.ref.collection("users").doc(userId),
+      ),
+    );
+    const storeIndex: number = userDocuments.findIndex(
+      (userDocument: DocumentSnapshot): boolean => userDocument.exists,
+    );
+    if (storeIndex === -1) {
+      res.status(404).json({ error: "No store found for this user" });
+      return;
+    }
+
+    const productSnapshot = await stores.docs[storeIndex].ref
+      .collection("products")
+      .get();
+    const normalizedSearchName = searchName.toLocaleLowerCase();
+    const products: ProductResponse[] = [];
+
+    for (const productDocument of productSnapshot.docs) {
+      const productData: unknown = productDocument.data();
+      if (!isProductData(productData)) {
+        console.error(
+          "Product document is missing valid product fields:",
+          productDocument.id,
+        );
+        res.status(500).json({ error: "Failed to search products" });
+        return;
+      }
+
+      if (productData.name.toLocaleLowerCase().includes(normalizedSearchName)) {
+        products.push({
+          ...pickProductData(productData),
+          id: productDocument.id,
+        });
+      }
+    }
+
+    res.json(products);
+  } catch (error) {
+    console.error("Failed to search products from Firestore:", error);
+    res.status(500).json({ error: "Failed to search products" });
   }
 };
 
