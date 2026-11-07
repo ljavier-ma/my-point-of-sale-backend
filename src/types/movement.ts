@@ -1,5 +1,10 @@
 import type { Query } from "express-serve-static-core";
 
+export interface CreateMovementRequest {
+  isMovementAPurchase: boolean;
+  productDetails: MovementProductDetail[];
+}
+
 export interface ErrorResponse {
   error: string;
 }

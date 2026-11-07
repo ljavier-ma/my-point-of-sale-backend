@@ -10,7 +10,10 @@ import type {
   QueryDocumentSnapshot,
 } from "firebase-admin/firestore";
 
+import { Timestamp } from "firebase-admin/firestore";
+
 import type {
+  CreateMovementRequest,
   ErrorResponse,
   MovementProductDetail,
   MovementResponse,
@@ -20,6 +23,26 @@ import type {
 
 import { firestoreDB } from "../config/firebase.js";
 import { getAuthenticatedUserId } from "../utils/auth.js";
+
+type CreateMovementResult =
+  | { movement: MovementResponse; success: true }
+  | { reason: "invalid-product-stock" | "product-not-found"; success: false };
+
+function isCreateMovementRequest(
+  value: unknown,
+): value is CreateMovementRequest {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    return false;
+  }
+
+  const data: Record<string, unknown> = value as Record<string, unknown>;
+  return (
+    typeof data.isMovementAPurchase === "boolean" &&
+    Array.isArray(data.productDetails) &&
+    data.productDetails.length > 0 &&
+    data.productDetails.every(isValidCreateMovementProductDetail)
+  );
+}
 
 function isMovementData(
   value: unknown,
@@ -54,6 +77,20 @@ function isMovementProductDetail(
     typeof detail.productId === "string" &&
     typeof detail.quantity === "number" &&
     Number.isFinite(detail.quantity)
+  );
+}
+
+function isValidCreateMovementProductDetail(
+  value: unknown,
+): value is MovementProductDetail {
+  if (!isMovementProductDetail(value)) {
+    return false;
+  }
+
+  return (
+    value.productId.trim().length > 0 &&
+    value.productTotal >= 0 &&
+    value.quantity >= 0
   );
 }
 
@@ -159,5 +196,150 @@ export const movementsMiddleware: RequestHandler<
   } catch (error) {
     console.error("Failed to fetch movements from Firestore:", error);
     res.status(500).json({ error: "Failed to fetch movements" });
+  }
+};
+
+export const createMovementMiddleware: RequestHandler<
+  ParamsDictionary,
+  ErrorResponse | MovementResponse,
+  unknown
+> = async (
+  req: Request<ParamsDictionary, ErrorResponse | MovementResponse, unknown>,
+  res: Response<ErrorResponse | MovementResponse>,
+): Promise<void> => {
+  const userId: string | undefined = getAuthenticatedUserId(req);
+  if (!userId) {
+    res.status(401).json({ error: "Authentication required" });
+    return;
+  }
+
+  if (!isCreateMovementRequest(req.body)) {
+    res.status(400).json({ error: "Invalid movement data" });
+    return;
+  }
+  const movementData: CreateMovementRequest = req.body;
+  const productDetails: MovementProductDetail[] =
+    movementData.productDetails.map(
+      ({ productId, productTotal, quantity }) => ({
+        productId,
+        productTotal,
+        quantity,
+      }),
+    );
+
+  const productIds = productDetails.map(({ productId }) => productId);
+  if (new Set(productIds).size !== productIds.length) {
+    res.status(400).json({ error: "Product IDs must be unique" });
+    return;
+  }
+
+  try {
+    const stores = await firestoreDB.collection("stores").get();
+    if (stores.empty) {
+      res.status(404).json({ error: "No store found for this user" });
+      return;
+    }
+
+    const userDocuments = await firestoreDB.getAll(
+      ...stores.docs.map((store: QueryDocumentSnapshot): DocumentReference =>
+        store.ref.collection("users").doc(userId),
+      ),
+    );
+    const storeIndex: number = userDocuments.findIndex(
+      (userDocument: DocumentSnapshot): boolean => userDocument.exists,
+    );
+    if (storeIndex === -1) {
+      res.status(404).json({ error: "No store found for this user" });
+      return;
+    }
+
+    const storeReference = stores.docs[storeIndex].ref;
+    const productReferences: DocumentReference[] = productIds.map(
+      (productId: string): DocumentReference =>
+        storeReference.collection("products").doc(productId),
+    );
+    const movementReference = storeReference.collection("movements").doc();
+    const time = Timestamp.now();
+    const result: CreateMovementResult = await firestoreDB.runTransaction(
+      async (transaction): Promise<CreateMovementResult> => {
+        const productSnapshots = await Promise.all(
+          productReferences.map((productReference) =>
+            transaction.get(productReference),
+          ),
+        );
+        const updatedStocks: number[] = [];
+
+        for (const [index, productSnapshot] of productSnapshots.entries()) {
+          if (!productSnapshot.exists) {
+            return { reason: "product-not-found", success: false };
+          }
+
+          const productData: unknown = productSnapshot.data();
+          if (
+            typeof productData !== "object" ||
+            productData === null ||
+            Array.isArray(productData)
+          ) {
+            return { reason: "invalid-product-stock", success: false };
+          }
+
+          const storedStock: unknown = Reflect.get(productData, "stock");
+          let currentStock: number;
+          if (storedStock === null) {
+            currentStock = 0;
+          } else if (
+            typeof storedStock === "number" &&
+            Number.isFinite(storedStock) &&
+            storedStock >= 0
+          ) {
+            currentStock = storedStock;
+          } else {
+            return { reason: "invalid-product-stock", success: false };
+          }
+
+          const detail = productDetails[index];
+          const updatedStock = movementData.isMovementAPurchase
+            ? currentStock + detail.quantity
+            : Math.max(0, currentStock - detail.quantity);
+          if (!Number.isFinite(updatedStock)) {
+            return { reason: "invalid-product-stock", success: false };
+          }
+          updatedStocks.push(updatedStock);
+        }
+
+        for (const [index, productReference] of productReferences.entries()) {
+          transaction.update(productReference, {
+            stock: updatedStocks[index],
+          });
+        }
+
+        const movement: Omit<MovementResponse, "id"> = {
+          isMovementAPurchase: movementData.isMovementAPurchase,
+          productDetails,
+          time,
+        };
+        transaction.set(movementReference, movement);
+        return {
+          movement: { ...movement, id: movementReference.id },
+          success: true,
+        };
+      },
+    );
+
+    if (!result.success) {
+      if (result.reason === "product-not-found") {
+        res.status(404).json({ error: "Product not found" });
+        return;
+      }
+
+      console.error("Product has invalid stock data during movement");
+      res.status(500).json({ error: "Failed to create movement" });
+      return;
+    }
+
+    res.status(201).json(result.movement);
+  } catch (error) {
+    console.error("Failed to create movement in Firestore:", error);
+    res.status(500).json({ error: "Failed to create movement" });
   }
 };
