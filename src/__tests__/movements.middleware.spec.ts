@@ -105,6 +105,7 @@ describe("movementsMiddleware", () => {
         {
           data: (): Record<string, unknown> => ({
             extra: "not returned",
+            isMovementAPurchase: true,
             productDetails,
             time: movementTime,
           }),
@@ -137,6 +138,7 @@ describe("movementsMiddleware", () => {
       movements: [
         {
           id: "movement-1",
+          isMovementAPurchase: true,
           productDetails: [
             { productId: "product-1", productTotal: 37, quantity: 2 },
           ],
@@ -217,9 +219,49 @@ describe("movementsMiddleware", () => {
       movementDocuments: [
         {
           data: (): Record<string, unknown> => ({
+            isMovementAPurchase: true,
             productDetails: [
               { productId: "product-1", productTotal: "37", quantity: 2 },
             ],
+            time: "today",
+          }),
+          id: "invalid-movement",
+        },
+      ],
+    });
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
+    const req = {
+      firebaseUser: { uid: "user-1" },
+      query: { limit: "5", offset: "0" },
+    } as Request<
+      Record<string, never>,
+      ErrorResponse | MovementsResponse,
+      unknown,
+      MovementsQuery
+    >;
+    const res = createResponse();
+
+    await movementsMiddleware(req, res, vi.fn());
+
+    expect(consoleError).toHaveBeenCalledWith(
+      "Movement document is missing valid movement fields:",
+      "invalid-movement",
+    );
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Failed to fetch movements",
+    });
+  });
+
+  it("returns 500 when a movement has an invalid purchase flag", async () => {
+    configureFirestore({
+      movementDocuments: [
+        {
+          data: (): Record<string, unknown> => ({
+            isMovementAPurchase: "true",
+            productDetails: [],
             time: "today",
           }),
           id: "invalid-movement",

@@ -12,6 +12,7 @@ export interface MovementProductDetail {
 
 export interface MovementResponse {
   id: string;
+  isMovementAPurchase: boolean;
   productDetails: MovementProductDetail[];
   time: unknown;
 }
