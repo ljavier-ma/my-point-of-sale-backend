@@ -23,13 +23,17 @@ import { getAuthenticatedUserId } from "../utils/auth.js";
 
 function isMovementData(
   value: unknown,
-): value is Pick<MovementResponse, "productDetails" | "time"> {
+): value is Pick<
+  MovementResponse,
+  "isMovementAPurchase" | "productDetails" | "time"
+> {
   if (typeof value !== "object" || value === null || Array.isArray(value)) {
     return false;
   }
 
   const data: Record<string, unknown> = value as Record<string, unknown>;
   return (
+    typeof data.isMovementAPurchase === "boolean" &&
     Array.isArray(data.productDetails) &&
     data.productDetails.every(isMovementProductDetail) &&
     Object.hasOwn(data, "time")
@@ -136,6 +140,7 @@ export const movementsMiddleware: RequestHandler<
 
       movements.push({
         id: movementDocument.id,
+        isMovementAPurchase: movementData.isMovementAPurchase,
         productDetails: movementData.productDetails.map(
           ({ productId, productTotal, quantity }) => ({
             productId,

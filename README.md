@@ -80,6 +80,7 @@ count:
   "movements": [
     {
       "id": "movement-document-id",
+      "isMovementAPurchase": true,
       "time": "Firebase movement time",
       "productDetails": [
         {
