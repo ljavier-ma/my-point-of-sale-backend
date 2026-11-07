@@ -99,3 +99,27 @@ count:
   "totalOfMovements": 1
 }
 ```
+
+`POST /movements` accepts `isMovementAPurchase` and a non-empty
+`productDetails` array. Each detail must contain a `productId`, `productTotal`,
+and non-negative `quantity`; product IDs must be unique and refer to products
+in the authenticated user's store. For example:
+
+```json
+{
+  "productDetails": [
+    {
+      "productTotal": 0,
+      "productId": "product-document-id",
+      "quantity": 0
+    }
+  ],
+  "isMovementAPurchase": true
+}
+```
+
+The endpoint updates product stocks and creates the movement atomically.
+Purchases add quantity to stock; other movements subtract quantity, clamping
+the result at zero. Null stock is treated as zero. The server sets `time` using
+the current Firestore timestamp and returns the created movement with its
+Firestore ID.
