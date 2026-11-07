@@ -566,7 +566,7 @@ describe("productsMiddleware", () => {
       });
     });
 
-    it("creates a product with only its name and stores other fields as null", async () => {
+    it("creates a product with only its name and defaults other fields", async () => {
       configureFirestore();
       const req = {
         body: { name: "New product" },
@@ -577,24 +577,45 @@ describe("productsMiddleware", () => {
         unknown
       >;
       const res = createResponse();
-      const productWithNullFields = {
-        barcode: null,
-        code: null,
-        idealAmount: null,
-        lowQuantity: null,
+      const productWithDefaultFields = {
+        barcode: "",
+        code: "",
+        idealAmount: 0,
+        lowQuantity: 0,
         name: "New product",
-        stock: null,
-        unitaryPrice: null,
+        stock: 0,
+        unitaryPrice: 0,
       };
 
       await createProductMiddleware(req, res, vi.fn());
 
-      expect(productCollection.add).toHaveBeenCalledWith(productWithNullFields);
+      expect(productCollection.add).toHaveBeenCalledWith(
+        productWithDefaultFields,
+      );
       expect(res.status).toHaveBeenCalledWith(201);
       expect(res.json).toHaveBeenCalledWith({
-        ...productWithNullFields,
+        ...productWithDefaultFields,
         id: "generated-product-id",
       });
+    });
+
+    it("rejects null product field values", async () => {
+      configureFirestore();
+      const req = {
+        body: { ...productData, stock: null },
+        firebaseUser: { uid: "user-1" },
+      } as Request<
+        Record<string, never>,
+        ErrorResponse | ProductResponse,
+        unknown
+      >;
+      const res = createResponse();
+
+      await createProductMiddleware(req, res, vi.fn());
+
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(res.json).toHaveBeenCalledWith({ error: "Invalid product data" });
+      expect(productCollection.add).not.toHaveBeenCalled();
     });
 
     it("rejects a product without a name", async () => {
@@ -618,17 +639,25 @@ describe("productsMiddleware", () => {
 
     it.each(["barcode", "code", "name"] as const)(
       "rejects a product with a duplicate %s",
-      async (field) => {
+      async (field): Promise<void> => {
+        const duplicateValue = "duplicate-value";
         configureFirestore({
           productDocuments: [
             {
-              data: (): typeof productData => productData,
+              data: (): Record<string, unknown> => ({
+                ...productData,
+                [field]: duplicateValue,
+              }),
               id: "existing-product",
             },
           ],
         });
         const req = {
-          body: { ...productData, id: "client-id" },
+          body: {
+            ...productData,
+            [field]: duplicateValue,
+            id: "client-id",
+          },
           firebaseUser: { uid: "user-1" },
         } as Request<
           Record<string, never>,
@@ -642,7 +671,7 @@ describe("productsMiddleware", () => {
         expect(productCollection.where).toHaveBeenCalledWith(
           field,
           "==",
-          productData[field],
+          duplicateValue,
         );
         expect(res.status).toHaveBeenCalledWith(409);
         expect(productCollection.add).not.toHaveBeenCalled();

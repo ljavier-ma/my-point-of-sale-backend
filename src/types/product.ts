@@ -5,14 +5,14 @@ export interface ErrorResponse {
 }
 
 export interface ProductResponse {
-  barcode: null | string;
-  code: null | string;
+  barcode: string;
+  code: string;
   id: string;
-  idealAmount: null | number;
-  lowQuantity: null | number;
+  idealAmount: number;
+  lowQuantity: number;
   name: string;
-  stock: null | number;
-  unitaryPrice: null | number;
+  stock: number;
+  unitaryPrice: number;
 }
 
 export interface ProductsQuery extends Query {

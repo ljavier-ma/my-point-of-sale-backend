@@ -57,15 +57,16 @@ Firestore IDs. A non-empty `name` query parameter is required.
 
 `POST /products` uses the same Firebase ID token and store membership. Send a
 JSON object with the required `name` and any optional product fields shown
-above, excluding `id`. Omitted optional fields are stored as `null`. Barcode,
-code, and name must each be unique among products in the authenticated user's
-store. The server creates a document in `stores/{storeId}/products` using a
-Firestore-generated document ID and returns the product with that ID. A
-duplicate barcode, code, or name returns `409 Conflict`.
+above, excluding `id`. Omitted string fields are stored as empty strings and
+omitted numeric fields as `0`; product fields cannot be `null`. Barcode, code,
+and name must each be unique among non-empty values in the authenticated
+user's store. The server creates a document in `stores/{storeId}/products`
+using a Firestore-generated document ID and returns the product with that ID.
+A duplicate barcode, code, or name returns `409 Conflict`.
 
 `PATCH /products/{productId}` updates one or more product fields in the
 authenticated user's store. The request must contain at least one valid product
-field; the product ID and unrecognized fields cannot be changed.
+field; the product ID, null values, and unrecognized fields cannot be changed.
 
 `DELETE /product/{productId}` deletes the specified product from the
 authenticated user's store and returns `204 No Content` when successful.
@@ -120,6 +121,6 @@ in the authenticated user's store. For example:
 
 The endpoint updates product stocks and creates the movement atomically.
 Purchases add quantity to stock; other movements subtract quantity, clamping
-the result at zero. Null stock is treated as zero. The server sets `time` using
-the current Firestore timestamp and returns the created movement with its
-Firestore ID.
+the result at zero. Product stock must be a non-negative number. The server
+sets `time` using the current Firestore timestamp and returns the created
+movement with its Firestore ID.

@@ -92,9 +92,6 @@ function isValidProductField(
   field: (typeof productFields)[number],
   value: unknown,
 ): boolean {
-  if (value === null && field !== "name") {
-    return true;
-  }
   if (field === "barcode" || field === "code" || field === "name") {
     return typeof value === "string";
   }
@@ -105,13 +102,13 @@ function normalizeCreateProductInput(
   value: CreateProductInput,
 ): Omit<ProductResponse, "id"> {
   return {
-    barcode: value.barcode ?? null,
-    code: value.code ?? null,
-    idealAmount: value.idealAmount ?? null,
-    lowQuantity: value.lowQuantity ?? null,
+    barcode: value.barcode ?? "",
+    code: value.code ?? "",
+    idealAmount: value.idealAmount ?? 0,
+    lowQuantity: value.lowQuantity ?? 0,
     name: value.name,
-    stock: value.stock ?? null,
-    unitaryPrice: value.unitaryPrice ?? null,
+    stock: value.stock ?? 0,
+    unitaryPrice: value.unitaryPrice ?? 0,
   };
 }
 
@@ -355,7 +352,7 @@ export const createProductMiddleware: RequestHandler<
     const duplicates = await Promise.all(
       uniqueProductFields.map(async (field) => {
         const value = productData[field];
-        if (value === null) {
+        if (value === "") {
           return false;
         }
 

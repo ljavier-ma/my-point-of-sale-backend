@@ -513,7 +513,7 @@ describe("movementsMiddleware", () => {
       expect(res.status).toHaveBeenCalledWith(201);
     });
 
-    it("treats a null stock as zero", async (): Promise<void> => {
+    it("rejects null stock without updating products or saving a movement", async (): Promise<void> => {
       configureFirestore({
         productDocuments: [
           {
@@ -522,21 +522,25 @@ describe("movementsMiddleware", () => {
           },
         ],
       });
-      const body = {
-        isMovementAPurchase: true,
-        productDetails: [
-          { productId: "product-1", productTotal: 37, quantity: 2 },
-        ],
-      };
       const res = createResponse();
 
-      await createMovementMiddleware(createMovementRequest(body), res, vi.fn());
-
-      expect(movementTransaction.update).toHaveBeenCalledWith(
-        { id: "product-1" },
-        { stock: 2 },
+      await createMovementMiddleware(
+        createMovementRequest({
+          isMovementAPurchase: true,
+          productDetails: [
+            { productId: "product-1", productTotal: 37, quantity: 2 },
+          ],
+        }),
+        res,
+        vi.fn(),
       );
-      expect(res.status).toHaveBeenCalledWith(201);
+
+      expect(res.status).toHaveBeenCalledWith(500);
+      expect(res.json).toHaveBeenCalledWith({
+        error: "Failed to create movement",
+      });
+      expect(movementTransaction.update).not.toHaveBeenCalled();
+      expect(movementTransaction.set).not.toHaveBeenCalled();
     });
 
     it("rejects repeated product IDs before starting a transaction", async (): Promise<void> => {
