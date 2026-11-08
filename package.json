@@ -2,10 +2,10 @@
   "name": "my-point-of-sale-backend",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
+  "main": "dist/src/index.js",
   "scripts": {
-    "dev": "tsx --watch --env-file .env src/index.ts",
-    "start": "node --env-file .env dist/index.js",
+    "dev": "node --conditions=development --import tsx --watch --env-file .env src/index.ts",
+    "start": "node --env-file .env dist/src/index.js",
     "type-check": "tsc --noEmit",
     "lint": "eslint .",
     "lint:fix": "eslint --fix .",
@@ -44,7 +44,11 @@
     "vitest": "^5.0.5"
   },
   "imports": {
-    "#*": "./src/*"
+    "#*": {
+      "development": "./src/*",
+      "types": "./src/*",
+      "default": "./dist/src/*"
+    }
   },
   "lint-staged": {
     "*.{js,jsx,ts,tsx}": [
