@@ -28,12 +28,14 @@ vi.mock("../config/firebase.js", () => ({ firestoreDB }));
 import type {
   ErrorResponse,
   ProductResponse,
+  ProductsBelowIdealResponse,
   ProductsQuery,
   ProductsResponse,
   ProductsSearchQuery,
 } from "../types/product.js";
 
 import {
+  bellowIdealProductsMiddleware,
   createProductMiddleware,
   deleteProductMiddleware,
   productMiddleware,
@@ -53,14 +55,22 @@ const productData = {
 };
 
 const createResponse = (): Response<
-  ErrorResponse | ProductResponse | ProductResponse[] | ProductsResponse
+  | ErrorResponse
+  | ProductResponse
+  | ProductResponse[]
+  | ProductsBelowIdealResponse
+  | ProductsResponse
 > =>
   ({
     end: vi.fn(),
     json: vi.fn(),
     status: vi.fn().mockReturnThis(),
   }) as unknown as Response<
-    ErrorResponse | ProductResponse | ProductResponse[] | ProductsResponse
+    | ErrorResponse
+    | ProductResponse
+    | ProductResponse[]
+    | ProductsBelowIdealResponse
+    | ProductsResponse
   >;
 
 interface FirestoreConfig {
@@ -203,6 +213,83 @@ describe("searchProductsMiddleware", () => {
     expect(res.status).toHaveBeenCalledWith(400);
     expect(res.json).toHaveBeenCalledWith({
       error: "A non-empty name query parameter is required",
+    });
+    expect(firestoreDB.collection).not.toHaveBeenCalled();
+  });
+});
+
+describe("bellowIdealProductsMiddleware", () => {
+  beforeEach((): void => {
+    vi.clearAllMocks();
+  });
+
+  it("returns products with stock strictly between low quantity and ideal amount", async () => {
+    configureFirestore({
+      productDocuments: [
+        {
+          data: (): typeof productData => ({
+            ...productData,
+            idealAmount: 3,
+            stock: 2,
+          }),
+          id: "below-ideal",
+        },
+        {
+          data: (): typeof productData => ({
+            ...productData,
+            idealAmount: 3,
+            stock: 1,
+          }),
+          id: "at-low-quantity",
+        },
+        {
+          data: (): typeof productData => ({
+            ...productData,
+            idealAmount: 3,
+            stock: 3,
+          }),
+          id: "at-ideal-amount",
+        },
+        {
+          data: (): typeof productData => ({
+            ...productData,
+            idealAmount: 3,
+            stock: 0,
+          }),
+          id: "below-low-quantity",
+        },
+      ],
+    });
+    const req = {
+      firebaseUser: { uid: "user-1" },
+    } as Request<
+      Record<string, never>,
+      ErrorResponse | ProductsBelowIdealResponse
+    >;
+    const res = createResponse();
+
+    await bellowIdealProductsMiddleware(req, res, vi.fn());
+
+    expect(res.json).toHaveBeenCalledWith({
+      products: [
+        { ...productData, id: "below-ideal", idealAmount: 3, stock: 2 },
+      ],
+    });
+    expect(res.status).not.toHaveBeenCalled();
+  });
+
+  it("returns 401 when the request is unauthenticated", async () => {
+    const req = {} as Request<
+      Record<string, never>,
+      ErrorResponse | ProductsBelowIdealResponse
+    >;
+    const res = createResponse();
+
+    await bellowIdealProductsMiddleware(req, res, vi.fn());
+
+    expect(res.status).toHaveBeenCalledWith(401);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Authentication required",
     });
     expect(firestoreDB.collection).not.toHaveBeenCalled();
   });
