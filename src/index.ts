@@ -41,7 +41,7 @@ import { userMiddleware } from "#middlewares/user.middleware.js";
 import { firebaseAuthMiddleware } from "#services/firebase-auth.service.js";
 
 const app: Express = express();
-const port: string = process.env.PORT ?? "9001";
+const port: string = process.env.PORT ?? "8080";
 
 app.use((req, res, next): void => {
   const origin: string | undefined = req.get("origin");
