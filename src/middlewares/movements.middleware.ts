@@ -160,7 +160,11 @@ export const movementsMiddleware: RequestHandler<
     const movementsCollection =
       stores.docs[storeIndex].ref.collection("movements");
     const [movementSnapshot, countSnapshot] = await Promise.all([
-      movementsCollection.offset(offset).limit(limit).get(),
+      movementsCollection
+        .orderBy("time", "desc")
+        .offset(offset)
+        .limit(limit)
+        .get(),
       movementsCollection.count().get(),
     ]);
     const movements: MovementResponse[] = [];

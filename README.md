@@ -86,9 +86,9 @@ authenticated user's store and returns `204 No Content` when successful.
 `Authorization` header as a bearer token. It reads a page of movements from
 the authenticated user's `stores/{storeId}/movements` collection.
 `offset` is a zero-based index and must be at least `0`; `limit` must be at
-least `1`. Each movement includes its Firestore document ID as `id`, the stored
-`time`, and a `productDetails` array. The response includes the total movement
-count:
+least `1`. Movements are ordered from newest to oldest by `time`. Each movement
+includes its Firestore document ID as `id`, the stored `time`, and a
+`productDetails` array. The response includes the total movement count:
 
 ```json
 {
