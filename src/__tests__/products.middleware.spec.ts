@@ -29,6 +29,7 @@ import type {
   ErrorResponse,
   ProductResponse,
   ProductsBelowIdealResponse,
+  ProductsLowQuantityResponse,
   ProductsQuery,
   ProductsResponse,
   ProductsSearchQuery,
@@ -38,6 +39,7 @@ import {
   bellowIdealProductsMiddleware,
   createProductMiddleware,
   deleteProductMiddleware,
+  lowQuantityProductsMiddleware,
   productMiddleware,
   productsMiddleware,
   searchProductsMiddleware,
@@ -286,6 +288,64 @@ describe("bellowIdealProductsMiddleware", () => {
     const res = createResponse();
 
     await bellowIdealProductsMiddleware(req, res, vi.fn());
+
+    expect(res.status).toHaveBeenCalledWith(401);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Authentication required",
+    });
+    expect(firestoreDB.collection).not.toHaveBeenCalled();
+  });
+});
+
+describe("lowQuantityProductsMiddleware", () => {
+  beforeEach((): void => {
+    vi.clearAllMocks();
+  });
+
+  it("returns products whose stock is at or below their low quantity", async () => {
+    configureFirestore({
+      productDocuments: [
+        {
+          data: (): typeof productData => ({ ...productData, stock: 0 }),
+          id: "below-low-quantity",
+        },
+        {
+          data: (): typeof productData => ({ ...productData, stock: 1 }),
+          id: "at-low-quantity",
+        },
+        {
+          data: (): typeof productData => ({ ...productData, stock: 2 }),
+          id: "above-low-quantity",
+        },
+      ],
+    });
+    const req = {
+      firebaseUser: { uid: "user-1" },
+    } as Request<
+      Record<string, never>,
+      ErrorResponse | ProductsLowQuantityResponse
+    >;
+    const res = createResponse();
+
+    await lowQuantityProductsMiddleware(req, res, vi.fn());
+
+    expect(res.json).toHaveBeenCalledWith({
+      products: [
+        { ...productData, id: "below-low-quantity", stock: 0 },
+        { ...productData, id: "at-low-quantity", stock: 1 },
+      ],
+    });
+    expect(res.status).not.toHaveBeenCalled();
+  });
+
+  it("returns 401 when the request is unauthenticated", async () => {
+    const req = {} as Request<
+      Record<string, never>,
+      ErrorResponse | ProductsLowQuantityResponse
+    >;
+    const res = createResponse();
+
+    await lowQuantityProductsMiddleware(req, res, vi.fn());
 
     expect(res.status).toHaveBeenCalledWith(401);
     expect(res.json).toHaveBeenCalledWith({
