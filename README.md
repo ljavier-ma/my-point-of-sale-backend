@@ -22,6 +22,14 @@ The endpoint verifies the token, finds the store containing the user's document
 at `stores/{storeId}/users/{uid}`, and returns the store document data with its
 Firestore document ID. Firestore subcollections are not included.
 
+## Firebase Admin credentials
+
+For local development, `FIREBASE_PRIVATE_KEY_PATH` may point to a service
+account JSON file. When the variable is unset, Firebase Admin uses Application
+Default Credentials, which is the intended option on Firebase App Hosting.
+Grant the App Hosting runtime service account access to Firebase Authentication
+and Firestore; do not deploy a local service-account file.
+
 ## Products endpoint
 
 `GET /products?offset=0&limit=20` requires a Firebase ID token in the
