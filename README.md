@@ -59,6 +59,11 @@ Firestore IDs. A non-empty `name` query parameter is required.
 the authenticated user's store whose stock is strictly below `idealAmount` and
 strictly above `lowQuantity`. Each product includes its Firestore ID.
 
+`GET /products/lowQuantity` returns a `products` array containing products in
+the authenticated user's store whose stock is less than or equal to
+`lowQuantity`.
+Each product includes its Firestore ID.
+
 `POST /products` uses the same Firebase ID token and store membership. Send a
 JSON object with the required `name` and any optional product fields shown
 above, excluding `id`. Omitted string fields are stored as empty strings and

@@ -14,6 +14,7 @@ import type {
   ErrorResponse,
   ProductResponse,
   ProductsBelowIdealResponse,
+  ProductsLowQuantityResponse,
   ProductsQuery,
   ProductsResponse,
   ProductsSearchQuery,
@@ -29,6 +30,7 @@ import {
   bellowIdealProductsMiddleware,
   createProductMiddleware,
   deleteProductMiddleware,
+  lowQuantityProductsMiddleware,
   productMiddleware,
   productsMiddleware,
   searchProductsMiddleware,
@@ -104,6 +106,11 @@ app.get<ParamsDictionary, ErrorResponse | ProductsBelowIdealResponse>(
   "/products/bellowIdeal",
   firebaseAuthMiddleware,
   bellowIdealProductsMiddleware,
+);
+app.get<ParamsDictionary, ErrorResponse | ProductsLowQuantityResponse>(
+  "/products/lowQuantity",
+  firebaseAuthMiddleware,
+  lowQuantityProductsMiddleware,
 );
 app.post<ParamsDictionary, ErrorResponse | ProductResponse, unknown>(
   "/products",

@@ -19,6 +19,10 @@ export interface ProductsBelowIdealResponse {
   products: ProductResponse[];
 }
 
+export interface ProductsLowQuantityResponse {
+  products: ProductResponse[];
+}
+
 export interface ProductsQuery extends Query {
   limit?: string;
   offset?: string;
