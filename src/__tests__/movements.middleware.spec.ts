@@ -20,6 +20,7 @@ const {
     get: vi.fn(),
     limit: vi.fn(),
     offset: vi.fn(),
+    orderBy: vi.fn(),
   },
   movementProductCollection: {
     doc: vi.fn(),
@@ -80,6 +81,7 @@ function configureFirestore(
   const productDocuments = config.productDocuments ?? [];
   movementCollection.offset.mockReturnThis();
   movementCollection.limit.mockReturnThis();
+  movementCollection.orderBy.mockReturnThis();
   movementCollection.doc.mockReturnValue({ id: "movement-new" });
   movementCollection.get.mockResolvedValue({
     docs: config.movementDocuments ?? [],
@@ -211,6 +213,7 @@ describe("movementsMiddleware", () => {
       "user-reference-1",
       "user-reference-2",
     );
+    expect(movementCollection.orderBy).toHaveBeenCalledWith("time", "desc");
     expect(movementCollection.offset).toHaveBeenCalledWith(10);
     expect(movementCollection.limit).toHaveBeenCalledWith(5);
     expect(res.json).toHaveBeenCalledWith({
