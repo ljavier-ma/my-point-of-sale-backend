@@ -55,6 +55,10 @@ within product names in the authenticated user's store. Matching is
 case-insensitive, and the response is an array of matching products with their
 Firestore IDs. A non-empty `name` query parameter is required.
 
+`GET /products/bellowIdeal` returns a `products` array containing products in
+the authenticated user's store whose stock is strictly below `idealAmount` and
+strictly above `lowQuantity`. Each product includes its Firestore ID.
+
 `POST /products` uses the same Firebase ID token and store membership. Send a
 JSON object with the required `name` and any optional product fields shown
 above, excluding `id`. Omitted string fields are stored as empty strings and

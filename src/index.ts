@@ -13,6 +13,7 @@ import type {
 import type {
   ErrorResponse,
   ProductResponse,
+  ProductsBelowIdealResponse,
   ProductsQuery,
   ProductsResponse,
   ProductsSearchQuery,
@@ -25,6 +26,7 @@ import {
   movementsMiddleware,
 } from "#middlewares/movements.middleware.js";
 import {
+  bellowIdealProductsMiddleware,
   createProductMiddleware,
   deleteProductMiddleware,
   productMiddleware,
@@ -98,6 +100,11 @@ app.get<
   unknown,
   ProductsSearchQuery
 >("/products/search", firebaseAuthMiddleware, searchProductsMiddleware);
+app.get<ParamsDictionary, ErrorResponse | ProductsBelowIdealResponse>(
+  "/products/bellowIdeal",
+  firebaseAuthMiddleware,
+  bellowIdealProductsMiddleware,
+);
 app.post<ParamsDictionary, ErrorResponse | ProductResponse, unknown>(
   "/products",
   firebaseAuthMiddleware,
