@@ -42,13 +42,16 @@ import { firebaseAuthMiddleware } from "#services/firebase-auth.service.js";
 
 const app: Express = express();
 const port: string = process.env.PORT ?? "8080";
+const allowedOrigin =
+  "https://my-point-of-sale-web--my-point-of-sale-ef022.us-central1.hosted.app";
 
 app.use((req, res, next): void => {
   const origin: string | undefined = req.get("origin");
 
   if (
     origin &&
-    /^https?:\/\/(?:localhost|127\.0\.0\.1|\[::1\])(?::\d+)?$/i.test(origin)
+    (origin === allowedOrigin ||
+      /^https?:\/\/(?:localhost|127\.0\.0\.1|\[::1\])(?::\d+)?$/i.test(origin))
   ) {
     res.setHeader("Access-Control-Allow-Origin", origin);
     res.vary("Origin");
