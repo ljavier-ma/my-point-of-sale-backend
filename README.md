@@ -21,8 +21,9 @@ Authorization: Bearer YOUR_FIREBASE_ID_TOKEN
 ```
 
 The endpoint verifies the token, finds the store containing the user's document
-at `stores/{storeId}/users/{uid}`, and returns the store document data with its
-Firestore document ID. Firestore subcollections are not included.
+at `stores/{storeId}/users/{uid}`, and returns its Firestore document ID, name,
+and `settings` object with numeric `idealPercentageOfProduct` and
+`lowPercentageOfProduct` fields. Firestore subcollections are not included.
 
 ## Firebase Admin credentials
 

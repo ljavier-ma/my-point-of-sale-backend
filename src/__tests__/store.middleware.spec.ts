@@ -55,10 +55,22 @@ describe("storeMiddleware", () => {
         ref: firstStoreRef,
       },
       {
-        data: (): { extra: boolean; id: string; name: string } => ({
+        data: (): {
+          extra: boolean;
+          id: string;
+          name: string;
+          settings: {
+            idealPercentageOfProduct: number;
+            lowPercentageOfProduct: number;
+          };
+        } => ({
           extra: true,
           id: "document-data-id",
           name: "Matching",
+          settings: {
+            idealPercentageOfProduct: 80,
+            lowPercentageOfProduct: 20,
+          },
         }),
         id: "matching-store",
         ref: matchingStoreRef,
@@ -84,6 +96,10 @@ describe("storeMiddleware", () => {
     expect(res.json).toHaveBeenCalledWith({
       id: "matching-store",
       name: "Matching",
+      settings: {
+        idealPercentageOfProduct: 80,
+        lowPercentageOfProduct: 20,
+      },
     });
     expect(res.status).not.toHaveBeenCalled();
   });
@@ -111,7 +127,7 @@ describe("storeMiddleware", () => {
     await storeMiddleware(req, res, vi.fn());
 
     expect(consoleError).toHaveBeenCalledWith(
-      "Store document is missing a valid id or name:",
+      "Store document is missing valid id, name, or settings:",
       "store-1",
     );
     expect(res.status).toHaveBeenCalledWith(500);
@@ -166,7 +182,44 @@ describe("storeMiddleware", () => {
     await storeMiddleware(req, res, vi.fn());
 
     expect(consoleError).toHaveBeenCalledWith(
-      "Store document is missing a valid id or name:",
+      "Store document is missing valid id, name, or settings:",
+      "store-1",
+    );
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({ error: "Failed to fetch store" });
+    consoleError.mockRestore();
+  });
+
+  it("returns 500 when the store document has invalid settings", async () => {
+    firestoreDB.collection.mockReturnValue({
+      get: vi.fn().mockResolvedValue({
+        docs: [
+          {
+            data: (): {
+              name: string;
+              settings: { idealPercentageOfProduct: string };
+            } => ({
+              name: "Store",
+              settings: { idealPercentageOfProduct: "80" },
+            }),
+            id: "store-1",
+            ref: { collection: vi.fn().mockReturnValue({ doc: vi.fn() }) },
+          },
+        ],
+      }),
+    });
+    firestoreDB.getAll.mockResolvedValue([{ exists: true }]);
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
+
+    const req = { firebaseUser: { uid: "user-1" } } as Request;
+    const res = createResponse();
+
+    await storeMiddleware(req, res, vi.fn());
+
+    expect(consoleError).toHaveBeenCalledWith(
+      "Store document is missing valid id, name, or settings:",
       "store-1",
     );
     expect(res.status).toHaveBeenCalledWith(500);
