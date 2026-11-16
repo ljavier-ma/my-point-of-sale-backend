@@ -12,7 +12,14 @@ function isStoreResponse(value: unknown): value is StoreResponse {
     "id" in value &&
     typeof value.id === "string" &&
     "name" in value &&
-    typeof value.name === "string"
+    typeof value.name === "string" &&
+    "settings" in value &&
+    typeof value.settings === "object" &&
+    value.settings !== null &&
+    "idealPercentageOfProduct" in value.settings &&
+    typeof value.settings.idealPercentageOfProduct === "number" &&
+    "lowPercentageOfProduct" in value.settings &&
+    typeof value.settings.lowPercentageOfProduct === "number"
   );
 }
 
@@ -46,9 +53,22 @@ export const storeMiddleware: RequestHandler = async (
       typeof storeData === "object" && storeData !== null && "name" in storeData
         ? storeData.name
         : undefined;
-    const response: unknown = { id: store.id, name: storeName };
+    const storeSettings: unknown =
+      typeof storeData === "object" &&
+      storeData !== null &&
+      "settings" in storeData
+        ? storeData.settings
+        : undefined;
+    const response: unknown = {
+      id: store.id,
+      name: storeName,
+      settings: storeSettings,
+    };
     if (!isStoreResponse(response)) {
-      console.error("Store document is missing a valid id or name:", store.id);
+      console.error(
+        "Store document is missing valid id, name, or settings:",
+        store.id,
+      );
       res.status(500).json({ error: "Failed to fetch store" });
       return;
     }
