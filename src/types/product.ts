@@ -6,6 +6,7 @@ export interface ErrorResponse {
 
 export interface ProductResponse {
   barcode: string;
+  baseStockAmount: number;
   code: string;
   id: string;
   idealAmount: number;

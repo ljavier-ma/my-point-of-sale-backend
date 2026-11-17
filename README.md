@@ -55,6 +55,7 @@ ID, and the total number of products in that store:
   "products": [
     {
       "id": "product-document-id",
+      "baseStockAmount": 10,
       "barcode": "",
       "code": "330750.51",
       "idealAmount": 2,
@@ -73,27 +74,31 @@ within product names in the authenticated user's store. Matching is
 case-insensitive, and the response is an array of matching products with their
 Firestore IDs. A non-empty `name` query parameter is required.
 
-`GET /products/bellowIdeal` returns a `products` array containing products in
-the authenticated user's store whose stock is strictly below `idealAmount` and
-strictly above `lowQuantity`. Each product includes its Firestore ID.
-
-`GET /products/lowQuantity` returns a `products` array containing products in
-the authenticated user's store whose stock is less than or equal to
-`lowQuantity`.
+`GET /products/bellowIdeal` returns products whose stock as a percentage of
+`baseStockAmount` is strictly below the store's `settings.idealPercentageOfProduct`
+and strictly above `settings.lowPercentageOfProduct`. Products with a
+`baseStockAmount` of zero are excluded because their percentage is undefined.
 Each product includes its Firestore ID.
+
+`GET /products/lowQuantity` returns products whose stock as a percentage of
+`baseStockAmount` is at or below the store's `settings.lowPercentageOfProduct`.
+Products with a `baseStockAmount` of zero are excluded because their percentage
+is undefined. Each product includes its Firestore ID.
 
 `POST /products` uses the same Firebase ID token and store membership. Send a
 JSON object with the required `name` and any optional product fields shown
-above, excluding `id`. Omitted string fields are stored as empty strings and
-omitted numeric fields as `0`; product fields cannot be `null`. Barcode, code,
-and name must each be unique among non-empty values in the authenticated
-user's store. The server creates a document in `stores/{storeId}/products`
-using a Firestore-generated document ID and returns the product with that ID.
-A duplicate barcode, code, or name returns `409 Conflict`.
+above, including numeric `baseStockAmount`, excluding `id`. Omitted string
+fields are stored as empty strings and omitted numeric fields as `0`; product
+fields cannot be `null`. Barcode, code, and name must each be unique among
+non-empty values in the authenticated user's store. The server creates a
+document in `stores/{storeId}/products` using a Firestore-generated document ID
+and returns the product with that ID. A duplicate barcode, code, or name
+returns `409 Conflict`.
 
-`PATCH /products/{productId}` updates one or more product fields in the
-authenticated user's store. The request must contain at least one valid product
-field; the product ID, null values, and unrecognized fields cannot be changed.
+`PATCH /products/{productId}` updates a product in the authenticated user's
+store. The request must contain all product fields, including
+`baseStockAmount`; the product ID, null values, and unrecognized fields cannot
+be changed.
 
 `DELETE /product/{productId}` deletes the specified product from the
 authenticated user's store and returns `204 No Content` when successful.

@@ -48,6 +48,7 @@ import {
 
 const productData = {
   barcode: "",
+  baseStockAmount: 10,
   code: "330750.51",
   idealAmount: 2,
   lowQuantity: 1,
@@ -84,12 +85,19 @@ interface FirestoreConfig {
     id: string;
   };
   storeCount?: number;
+  storeSettings?: unknown;
 }
 
 function configureFirestore(config: FirestoreConfig = {}): void {
   const productDocuments = config.productDocuments ?? [];
   const membershipExists = config.membershipExists ?? true;
   const storeCount = config.storeCount ?? 1;
+  const storeSettings = Object.hasOwn(config, "storeSettings")
+    ? config.storeSettings
+    : {
+        idealPercentageOfProduct: 80,
+        lowPercentageOfProduct: 20,
+      };
   productCollection.offset.mockReturnThis();
   productCollection.limit.mockReturnThis();
   productCollection.add.mockResolvedValue({ id: "generated-product-id" });
@@ -130,6 +138,7 @@ function configureFirestore(config: FirestoreConfig = {}): void {
   const stores = Array.from(
     { length: storeCount },
     (_value: unknown, index: number) => ({
+      data: (): { settings: unknown } => ({ settings: storeSettings }),
       id: `store-${String(index + 1)}`,
       ref: {
         collection: vi.fn((name: string) =>
@@ -225,42 +234,50 @@ describe("bellowIdealProductsMiddleware", () => {
     vi.clearAllMocks();
   });
 
-  it("returns products with stock strictly between low quantity and ideal amount", async () => {
+  it("returns products whose stock percentage is strictly between store thresholds", async () => {
     configureFirestore({
       productDocuments: [
         {
           data: (): typeof productData => ({
             ...productData,
-            idealAmount: 3,
-            stock: 2,
+            stock: 5,
           }),
-          id: "below-ideal",
+          id: "below-ideal-percentage",
         },
         {
           data: (): typeof productData => ({
             ...productData,
-            idealAmount: 3,
-            stock: 1,
-          }),
-          id: "at-low-quantity",
-        },
-        {
-          data: (): typeof productData => ({
-            ...productData,
-            idealAmount: 3,
             stock: 3,
           }),
-          id: "at-ideal-amount",
+          id: "at-low-percentage",
         },
         {
           data: (): typeof productData => ({
             ...productData,
-            idealAmount: 3,
-            stock: 0,
+            stock: 7,
           }),
-          id: "below-low-quantity",
+          id: "at-ideal-percentage",
+        },
+        {
+          data: (): typeof productData => ({
+            ...productData,
+            stock: 2,
+          }),
+          id: "below-low-percentage",
+        },
+        {
+          data: (): typeof productData => ({
+            ...productData,
+            baseStockAmount: 0,
+            stock: 5,
+          }),
+          id: "zero-base-stock",
         },
       ],
+      storeSettings: {
+        idealPercentageOfProduct: 70,
+        lowPercentageOfProduct: 30,
+      },
     });
     const req = {
       firebaseUser: { uid: "user-1" },
@@ -274,7 +291,11 @@ describe("bellowIdealProductsMiddleware", () => {
 
     expect(res.json).toHaveBeenCalledWith({
       products: [
-        { ...productData, id: "below-ideal", idealAmount: 3, stock: 2 },
+        {
+          ...productData,
+          id: "below-ideal-percentage",
+          stock: 5,
+        },
       ],
     });
     expect(res.status).not.toHaveBeenCalled();
@@ -302,22 +323,34 @@ describe("lowQuantityProductsMiddleware", () => {
     vi.clearAllMocks();
   });
 
-  it("returns products whose stock is at or below their low quantity", async () => {
+  it("returns products whose stock percentage is at or below the store low threshold", async () => {
     configureFirestore({
       productDocuments: [
         {
-          data: (): typeof productData => ({ ...productData, stock: 0 }),
-          id: "below-low-quantity",
-        },
-        {
-          data: (): typeof productData => ({ ...productData, stock: 1 }),
-          id: "at-low-quantity",
-        },
-        {
           data: (): typeof productData => ({ ...productData, stock: 2 }),
-          id: "above-low-quantity",
+          id: "below-low-percentage",
+        },
+        {
+          data: (): typeof productData => ({ ...productData, stock: 3 }),
+          id: "at-low-percentage",
+        },
+        {
+          data: (): typeof productData => ({ ...productData, stock: 4 }),
+          id: "above-low-percentage",
+        },
+        {
+          data: (): typeof productData => ({
+            ...productData,
+            baseStockAmount: 0,
+            stock: 0,
+          }),
+          id: "zero-base-stock",
         },
       ],
+      storeSettings: {
+        idealPercentageOfProduct: 80,
+        lowPercentageOfProduct: 30,
+      },
     });
     const req = {
       firebaseUser: { uid: "user-1" },
@@ -331,8 +364,8 @@ describe("lowQuantityProductsMiddleware", () => {
 
     expect(res.json).toHaveBeenCalledWith({
       products: [
-        { ...productData, id: "below-low-quantity", stock: 0 },
-        { ...productData, id: "at-low-quantity", stock: 1 },
+        { ...productData, id: "below-low-percentage", stock: 2 },
+        { ...productData, id: "at-low-percentage", stock: 3 },
       ],
     });
     expect(res.status).not.toHaveBeenCalled();
@@ -726,6 +759,7 @@ describe("productsMiddleware", () => {
       const res = createResponse();
       const productWithDefaultFields = {
         barcode: "",
+        baseStockAmount: 0,
         code: "",
         idealAmount: 0,
         lowQuantity: 0,
@@ -868,9 +902,11 @@ describe("productsMiddleware", () => {
     configureFirestore({
       productDocuments: [
         {
-          data: (): Omit<typeof productData, "stock"> & { stock: string } => ({
+          data: (): Omit<typeof productData, "baseStockAmount"> & {
+            baseStockAmount: string;
+          } => ({
             ...productData,
-            stock: "3",
+            baseStockAmount: "3",
           }),
           id: "invalid-product",
         },

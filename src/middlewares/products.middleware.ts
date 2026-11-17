@@ -20,12 +20,14 @@ import type {
   ProductsResponse,
   ProductsSearchQuery,
 } from "../types/product.js";
+import type { StoreSettings } from "../types/store.js";
 
 import { firestoreDB } from "../config/firebase.js";
 import { getAuthenticatedUserId } from "../utils/auth.js";
 
 const productFields = [
   "barcode",
+  "baseStockAmount",
   "code",
   "idealAmount",
   "lowQuantity",
@@ -39,6 +41,26 @@ const uniqueProductFields = ["barcode", "code", "name"] as const;
 type CreateProductInput = Partial<Omit<ProductResponse, "id">> & {
   name: string;
 };
+
+function getStockPercentage(
+  product: Omit<ProductResponse, "id">,
+): number | undefined {
+  return product.baseStockAmount === 0
+    ? undefined
+    : (product.stock / product.baseStockAmount) * 100;
+}
+
+function getStoreSettings(value: unknown): StoreSettings | undefined {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    return undefined;
+  }
+
+  const storeData: Record<string, unknown> = value as Record<string, unknown>;
+  return Object.hasOwn(storeData, "settings") &&
+    isStoreSettings(storeData.settings)
+    ? storeData.settings
+    : undefined;
+}
 
 function isCompleteProductInput(
   value: unknown,
@@ -90,6 +112,25 @@ function isProductData(value: unknown): value is Omit<ProductResponse, "id"> {
   );
 }
 
+function isStoreSettings(value: unknown): value is StoreSettings {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    return false;
+  }
+
+  const settings: Record<string, unknown> = value as Record<string, unknown>;
+  return (
+    typeof settings.idealPercentageOfProduct === "number" &&
+    Number.isFinite(settings.idealPercentageOfProduct) &&
+    settings.idealPercentageOfProduct >= 0 &&
+    settings.idealPercentageOfProduct < 100 &&
+    typeof settings.lowPercentageOfProduct === "number" &&
+    Number.isFinite(settings.lowPercentageOfProduct) &&
+    settings.lowPercentageOfProduct >= 0 &&
+    settings.lowPercentageOfProduct < 100 &&
+    settings.idealPercentageOfProduct > settings.lowPercentageOfProduct
+  );
+}
+
 function isValidProductField(
   field: (typeof productFields)[number],
   value: unknown,
@@ -105,6 +146,7 @@ function normalizeCreateProductInput(
 ): Omit<ProductResponse, "id"> {
   return {
     barcode: value.barcode ?? "",
+    baseStockAmount: value.baseStockAmount ?? 0,
     code: value.code ?? "",
     idealAmount: value.idealAmount ?? 0,
     lowQuantity: value.lowQuantity ?? 0,
@@ -133,6 +175,7 @@ function pickProductData(
 ): Omit<ProductResponse, "id"> {
   return {
     barcode: value.barcode,
+    baseStockAmount: value.baseStockAmount,
     code: value.code,
     idealAmount: value.idealAmount,
     lowQuantity: value.lowQuantity,
@@ -341,9 +384,17 @@ export const bellowIdealProductsMiddleware: RequestHandler<
       return;
     }
 
-    const productSnapshot = await stores.docs[storeIndex].ref
-      .collection("products")
-      .get();
+    const store = stores.docs[storeIndex];
+    const settings = getStoreSettings(store.data());
+    if (!settings) {
+      console.error("Store document is missing valid settings:", store.id);
+      res
+        .status(500)
+        .json({ error: "Failed to fetch products below ideal amount" });
+      return;
+    }
+
+    const productSnapshot = await store.ref.collection("products").get();
     const products: ProductResponse[] = [];
 
     for (const productDocument of productSnapshot.docs) {
@@ -359,9 +410,11 @@ export const bellowIdealProductsMiddleware: RequestHandler<
         return;
       }
 
+      const stockPercentage = getStockPercentage(productData);
       if (
-        productData.stock < productData.idealAmount &&
-        productData.stock > productData.lowQuantity
+        stockPercentage !== undefined &&
+        stockPercentage < settings.idealPercentageOfProduct &&
+        stockPercentage > settings.lowPercentageOfProduct
       ) {
         products.push({
           ...pickProductData(productData),
@@ -415,9 +468,17 @@ export const lowQuantityProductsMiddleware: RequestHandler<
       return;
     }
 
-    const productSnapshot = await stores.docs[storeIndex].ref
-      .collection("products")
-      .get();
+    const store = stores.docs[storeIndex];
+    const settings = getStoreSettings(store.data());
+    if (!settings) {
+      console.error("Store document is missing valid settings:", store.id);
+      res
+        .status(500)
+        .json({ error: "Failed to fetch products below low quantity" });
+      return;
+    }
+
+    const productSnapshot = await store.ref.collection("products").get();
     const products: ProductResponse[] = [];
 
     for (const productDocument of productSnapshot.docs) {
@@ -433,7 +494,11 @@ export const lowQuantityProductsMiddleware: RequestHandler<
         return;
       }
 
-      if (productData.stock <= productData.lowQuantity) {
+      const stockPercentage = getStockPercentage(productData);
+      if (
+        stockPercentage !== undefined &&
+        stockPercentage <= settings.lowPercentageOfProduct
+      ) {
         products.push({
           ...pickProductData(productData),
           id: productDocument.id,
