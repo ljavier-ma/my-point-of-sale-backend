@@ -113,12 +113,22 @@ app.get<
   unknown,
   ProductsSearchQuery
 >("/products/search", firebaseAuthMiddleware, searchProductsMiddleware);
-app.get<ParamsDictionary, ErrorResponse | ProductsBelowIdealResponse>(
+app.get<
+  ParamsDictionary,
+  ErrorResponse | ProductsBelowIdealResponse,
+  unknown,
+  ProductsQuery
+>(
   "/products/bellowIdeal",
   firebaseAuthMiddleware,
   bellowIdealProductsMiddleware,
 );
-app.get<ParamsDictionary, ErrorResponse | ProductsLowQuantityResponse>(
+app.get<
+  ParamsDictionary,
+  ErrorResponse | ProductsLowQuantityResponse,
+  unknown,
+  ProductsQuery
+>(
   "/products/lowQuantity",
   firebaseAuthMiddleware,
   lowQuantityProductsMiddleware,

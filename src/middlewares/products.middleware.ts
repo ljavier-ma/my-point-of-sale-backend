@@ -347,14 +347,30 @@ export const searchProductsMiddleware: RequestHandler<
 
 export const bellowIdealProductsMiddleware: RequestHandler<
   ParamsDictionary,
-  ErrorResponse | ProductsBelowIdealResponse
+  ErrorResponse | ProductsBelowIdealResponse,
+  unknown,
+  ProductsQuery
 > = async (
-  req: Request<ParamsDictionary, ErrorResponse | ProductsBelowIdealResponse>,
+  req: Request<
+    ParamsDictionary,
+    ErrorResponse | ProductsBelowIdealResponse,
+    unknown,
+    ProductsQuery
+  >,
   res: Response<ErrorResponse | ProductsBelowIdealResponse>,
 ): Promise<void> => {
   const userId: string | undefined = getAuthenticatedUserId(req);
   if (!userId) {
     res.status(401).json({ error: "Authentication required" });
+    return;
+  }
+
+  const offset: number | undefined = parsePaginationValue(req.query.offset, 0);
+  const limit: number | undefined = parsePaginationValue(req.query.limit, 1);
+  if (offset === undefined || limit === undefined) {
+    res
+      .status(400)
+      .json({ error: "Valid offset and limit query parameters are required" });
     return;
   }
 
@@ -417,7 +433,10 @@ export const bellowIdealProductsMiddleware: RequestHandler<
       }
     }
 
-    res.json({ products });
+    res.json({
+      products: products.slice(offset, offset + limit),
+      totalOfProducts: products.length,
+    });
   } catch (error) {
     console.error(
       "Failed to fetch products below ideal amount from Firestore:",
@@ -431,14 +450,30 @@ export const bellowIdealProductsMiddleware: RequestHandler<
 
 export const lowQuantityProductsMiddleware: RequestHandler<
   ParamsDictionary,
-  ErrorResponse | ProductsLowQuantityResponse
+  ErrorResponse | ProductsLowQuantityResponse,
+  unknown,
+  ProductsQuery
 > = async (
-  req: Request<ParamsDictionary, ErrorResponse | ProductsLowQuantityResponse>,
+  req: Request<
+    ParamsDictionary,
+    ErrorResponse | ProductsLowQuantityResponse,
+    unknown,
+    ProductsQuery
+  >,
   res: Response<ErrorResponse | ProductsLowQuantityResponse>,
 ): Promise<void> => {
   const userId: string | undefined = getAuthenticatedUserId(req);
   if (!userId) {
     res.status(401).json({ error: "Authentication required" });
+    return;
+  }
+
+  const offset: number | undefined = parsePaginationValue(req.query.offset, 0);
+  const limit: number | undefined = parsePaginationValue(req.query.limit, 1);
+  if (offset === undefined || limit === undefined) {
+    res
+      .status(400)
+      .json({ error: "Valid offset and limit query parameters are required" });
     return;
   }
 
@@ -500,7 +535,10 @@ export const lowQuantityProductsMiddleware: RequestHandler<
       }
     }
 
-    res.json({ products });
+    res.json({
+      products: products.slice(offset, offset + limit),
+      totalOfProducts: products.length,
+    });
   } catch (error) {
     console.error(
       "Failed to fetch products below low quantity from Firestore:",
