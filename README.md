@@ -25,6 +25,13 @@ at `stores/{storeId}/users/{uid}`, and returns its Firestore document ID, name,
 and `settings` object with numeric `idealPercentageOfProduct` and
 `lowPercentageOfProduct` fields. Firestore subcollections are not included.
 
+`PATCH /store` accepts a JSON object containing a non-empty `name` and a
+`settings` object with numeric `idealPercentageOfProduct` and
+`lowPercentageOfProduct` values from `0` (inclusive) to `100` (exclusive). It
+also requires `idealPercentageOfProduct` to be greater than
+`lowPercentageOfProduct`. It updates those fields on the authenticated user's
+store and returns the updated store.
+
 ## Firebase Admin credentials
 
 For local development, `FIREBASE_PRIVATE_KEY_PATH` may point to a service

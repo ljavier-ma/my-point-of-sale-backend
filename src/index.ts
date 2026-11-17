@@ -19,7 +19,7 @@ import type {
   ProductsResponse,
   ProductsSearchQuery,
 } from "#types/product.js";
-import type { StoreResponse } from "#types/store.js";
+import type { StoreErrorResponse, StoreResponse } from "#types/store.js";
 import type { UserResponse } from "#types/user.js";
 
 import {
@@ -36,7 +36,10 @@ import {
   searchProductsMiddleware,
   updateProductMiddleware,
 } from "#middlewares/products.middleware.js";
-import { storeMiddleware } from "#middlewares/store.middleware.js";
+import {
+  storeMiddleware,
+  updateStoreMiddleware,
+} from "#middlewares/store.middleware.js";
 import { userMiddleware } from "#middlewares/user.middleware.js";
 import { firebaseAuthMiddleware } from "#services/firebase-auth.service.js";
 
@@ -72,10 +75,15 @@ app.use((req, res, next): void => {
 
 app.use(express.json());
 
-app.get<ParamsDictionary, StoreResponse>(
+app.get<ParamsDictionary, StoreErrorResponse | StoreResponse>(
   "/store",
   firebaseAuthMiddleware,
   storeMiddleware,
+);
+app.patch<ParamsDictionary, StoreErrorResponse | StoreResponse, unknown>(
+  "/store",
+  firebaseAuthMiddleware,
+  updateStoreMiddleware,
 );
 app.get<ParamsDictionary, UserResponse>(
   "/user",
