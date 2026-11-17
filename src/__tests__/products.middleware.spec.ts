@@ -205,6 +205,34 @@ describe("searchProductsMiddleware", () => {
     expect(res.status).not.toHaveBeenCalled();
   });
 
+  it("returns at most 10 matching products", async () => {
+    configureFirestore({
+      productDocuments: Array.from({ length: 12 }, (_value, index) => ({
+        data: (): typeof productData => productData,
+        id: `product-${index + 1}`,
+      })),
+    });
+    const req = {
+      firebaseUser: { uid: "user-1" },
+      query: { name: "aluminio fino" },
+    } as Request<
+      Record<string, never>,
+      ErrorResponse | ProductResponse[],
+      unknown,
+      ProductsSearchQuery
+    >;
+    const res = createResponse();
+
+    await searchProductsMiddleware(req, res, vi.fn());
+
+    expect(res.json).toHaveBeenCalledWith(
+      Array.from({ length: 10 }, (_value, index) => ({
+        ...productData,
+        id: `product-${index + 1}`,
+      })),
+    );
+  });
+
   it("returns 400 when the name query parameter is missing or blank", async () => {
     const req = {
       firebaseUser: { uid: "user-1" },

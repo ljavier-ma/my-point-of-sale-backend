@@ -338,7 +338,7 @@ export const searchProductsMiddleware: RequestHandler<
       }
     }
 
-    res.json(products);
+    res.json(products.slice(0, 10));
   } catch (error) {
     console.error("Failed to search products from Firestore:", error);
     res.status(500).json({ error: "Failed to search products" });
