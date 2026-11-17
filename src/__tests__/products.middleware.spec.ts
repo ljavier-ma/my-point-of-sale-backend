@@ -50,8 +50,6 @@ const productData = {
   barcode: "",
   baseStockAmount: 10,
   code: "330750.51",
-  idealAmount: 2,
-  lowQuantity: 1,
   name: "ESMALTE S.D. ALUMINIO FINO 3.785 LTS",
   stock: 3,
   unitaryPrice: 273.7,
@@ -459,7 +457,9 @@ describe("productsMiddleware", () => {
             ...productData,
             eighthLiterPrice: 36,
             halfLiterPrice: 102,
+            idealAmount: 2,
             literPrice: 167,
+            lowQuantity: 1,
             publicPrice: 397,
             quarterLiterPrice: 62,
           }),
@@ -727,7 +727,13 @@ describe("productsMiddleware", () => {
     it("creates the product with a Firestore-generated document ID", async () => {
       configureFirestore();
       const req = {
-        body: { ...productData, id: "client-id", ignored: "not stored" },
+        body: {
+          ...productData,
+          id: "client-id",
+          idealAmount: 2,
+          ignored: "not stored",
+          lowQuantity: 1,
+        },
         firebaseUser: { uid: "user-1" },
       } as Request<
         Record<string, never>,
@@ -761,8 +767,6 @@ describe("productsMiddleware", () => {
         barcode: "",
         baseStockAmount: 0,
         code: "",
-        idealAmount: 0,
-        lowQuantity: 0,
         name: "New product",
         stock: 0,
         unitaryPrice: 0,
