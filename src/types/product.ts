@@ -16,10 +16,12 @@ export interface ProductResponse {
 
 export interface ProductsBelowIdealResponse {
   products: ProductResponse[];
+  totalOfProducts: number;
 }
 
 export interface ProductsLowQuantityResponse {
   products: ProductResponse[];
+  totalOfProducts: number;
 }
 
 export interface ProductsQuery extends Query {
