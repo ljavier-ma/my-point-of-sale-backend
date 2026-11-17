@@ -58,8 +58,6 @@ ID, and the total number of products in that store:
       "baseStockAmount": 10,
       "barcode": "",
       "code": "330750.51",
-      "idealAmount": 2,
-      "lowQuantity": 1,
       "name": "ESMALTE S.D. ALUMINIO FINO 3.785 LTS",
       "stock": 3,
       "unitaryPrice": 273.7

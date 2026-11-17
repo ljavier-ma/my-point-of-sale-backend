@@ -9,8 +9,6 @@ export interface ProductResponse {
   baseStockAmount: number;
   code: string;
   id: string;
-  idealAmount: number;
-  lowQuantity: number;
   name: string;
   stock: number;
   unitaryPrice: number;
