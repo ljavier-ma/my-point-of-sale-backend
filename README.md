@@ -40,6 +40,15 @@ Default Credentials, which is the intended option on Firebase App Hosting.
 Grant the App Hosting runtime service account access to Firebase Authentication
 and Firestore; do not deploy a local service-account file.
 
+## Test login endpoint
+
+`POST /test-login` starts a session for the dedicated
+`javier.dev.contact@gmail.com` Firebase account without requiring its password
+in the web app. The endpoint only mints a Firebase custom token when that
+account is enabled and its Firestore user document has `isForTesting: true`.
+Testing users have read-only access; the endpoint does not accept a user ID or
+email from the request.
+
 ## Products endpoint
 
 `GET /products?offset=0&limit=20` requires a Firebase ID token in the

@@ -52,7 +52,7 @@ export async function verifyFirebaseIdToken(
   return firebaseAuth.verifyIdToken(token);
 }
 
-async function isTestingUser(userId: string): Promise<boolean> {
+export async function isTestingUser(userId: string): Promise<boolean> {
   const stores = await firestoreDB.collection("stores").get();
   if (stores.empty) {
     return false;

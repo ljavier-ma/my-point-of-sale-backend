@@ -40,6 +40,7 @@ import {
   storeMiddleware,
   updateStoreMiddleware,
 } from "#middlewares/store.middleware.js";
+import { testLoginMiddleware } from "#middlewares/test-login.middleware.js";
 import { userMiddleware } from "#middlewares/user.middleware.js";
 import { firebaseAuthMiddleware } from "#services/firebase-auth.service.js";
 
@@ -74,6 +75,8 @@ app.use((req, res, next): void => {
 });
 
 app.use(express.json());
+
+app.post("/test-login", testLoginMiddleware);
 
 app.get<ParamsDictionary, StoreErrorResponse | StoreResponse>(
   "/store",
