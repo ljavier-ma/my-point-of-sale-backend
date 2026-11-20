@@ -25,6 +25,11 @@ export const firebaseAuthMiddleware: RequestHandler = async (
     return;
   }
 
+  if (req.method !== "GET" && req.firebaseUser.isForTesting === true) {
+    res.status(403).json({ error: "Testing users cannot modify data" });
+    return;
+  }
+
   next();
 };
 
