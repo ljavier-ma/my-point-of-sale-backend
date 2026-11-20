@@ -21,8 +21,16 @@ Authorization: Bearer YOUR_FIREBASE_ID_TOKEN
 ```
 
 The endpoint verifies the token, finds the store containing the user's document
-at `stores/{storeId}/users/{uid}`, and returns the store document data with its
-Firestore document ID. Firestore subcollections are not included.
+at `stores/{storeId}/users/{uid}`, and returns its Firestore document ID, name,
+and `settings` object with numeric `idealPercentageOfProduct` and
+`lowPercentageOfProduct` fields. Firestore subcollections are not included.
+
+`PATCH /store` accepts a JSON object containing a non-empty `name` and a
+`settings` object with numeric `idealPercentageOfProduct` and
+`lowPercentageOfProduct` values from `0` (inclusive) to `100` (exclusive). It
+also requires `idealPercentageOfProduct` to be greater than
+`lowPercentageOfProduct`. It updates those fields on the authenticated user's
+store and returns the updated store.
 
 ## Firebase Admin credentials
 
@@ -31,6 +39,15 @@ account JSON file. When the variable is unset, Firebase Admin uses Application
 Default Credentials, which is the intended option on Firebase App Hosting.
 Grant the App Hosting runtime service account access to Firebase Authentication
 and Firestore; do not deploy a local service-account file.
+
+## Test login endpoint
+
+`POST /test-login` starts a session for the dedicated
+`javier.dev.contact@gmail.com` Firebase account without requiring its password
+in the web app. The endpoint only mints a Firebase custom token when that
+account is enabled and its Firestore user document has `isForTesting: true`.
+Testing users have read-only access; the endpoint does not accept a user ID or
+email from the request.
 
 ## Products endpoint
 
@@ -47,10 +64,9 @@ ID, and the total number of products in that store:
   "products": [
     {
       "id": "product-document-id",
+      "baseStockAmount": 10,
       "barcode": "",
       "code": "330750.51",
-      "idealAmount": 2,
-      "lowQuantity": 1,
       "name": "ESMALTE S.D. ALUMINIO FINO 3.785 LTS",
       "stock": 3,
       "unitaryPrice": 273.7
@@ -65,27 +81,31 @@ within product names in the authenticated user's store. Matching is
 case-insensitive, and the response is an array of matching products with their
 Firestore IDs. A non-empty `name` query parameter is required.
 
-`GET /products/bellowIdeal` returns a `products` array containing products in
-the authenticated user's store whose stock is strictly below `idealAmount` and
-strictly above `lowQuantity`. Each product includes its Firestore ID.
-
-`GET /products/lowQuantity` returns a `products` array containing products in
-the authenticated user's store whose stock is less than or equal to
-`lowQuantity`.
+`GET /products/bellowIdeal` returns products whose stock as a percentage of
+`baseStockAmount` is strictly below the store's `settings.idealPercentageOfProduct`
+and strictly above `settings.lowPercentageOfProduct`. Products with a
+`baseStockAmount` of zero are excluded because their percentage is undefined.
 Each product includes its Firestore ID.
+
+`GET /products/lowQuantity` returns products whose stock as a percentage of
+`baseStockAmount` is at or below the store's `settings.lowPercentageOfProduct`.
+Products with a `baseStockAmount` of zero are excluded because their percentage
+is undefined. Each product includes its Firestore ID.
 
 `POST /products` uses the same Firebase ID token and store membership. Send a
 JSON object with the required `name` and any optional product fields shown
-above, excluding `id`. Omitted string fields are stored as empty strings and
-omitted numeric fields as `0`; product fields cannot be `null`. Barcode, code,
-and name must each be unique among non-empty values in the authenticated
-user's store. The server creates a document in `stores/{storeId}/products`
-using a Firestore-generated document ID and returns the product with that ID.
-A duplicate barcode, code, or name returns `409 Conflict`.
+above, including numeric `baseStockAmount`, excluding `id`. Omitted string
+fields are stored as empty strings and omitted numeric fields as `0`; product
+fields cannot be `null`. Barcode, code, and name must each be unique among
+non-empty values in the authenticated user's store. The server creates a
+document in `stores/{storeId}/products` using a Firestore-generated document ID
+and returns the product with that ID. A duplicate barcode, code, or name
+returns `409 Conflict`.
 
-`PATCH /products/{productId}` updates one or more product fields in the
-authenticated user's store. The request must contain at least one valid product
-field; the product ID, null values, and unrecognized fields cannot be changed.
+`PATCH /products/{productId}` updates a product in the authenticated user's
+store. The request must contain all product fields, including
+`baseStockAmount`; the product ID, null values, and unrecognized fields cannot
+be changed.
 
 `DELETE /product/{productId}` deletes the specified product from the
 authenticated user's store and returns `204 No Content` when successful.

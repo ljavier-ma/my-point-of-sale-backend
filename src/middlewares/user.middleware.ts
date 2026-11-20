@@ -11,6 +11,8 @@ function isUserData(value: unknown): value is Omit<UserResponse, "id"> {
     value !== null &&
     "email" in value &&
     typeof value.email === "string" &&
+    "isForTesting" in value &&
+    typeof value.isForTesting === "boolean" &&
     "name" in value &&
     typeof value.name === "string"
   );
@@ -49,7 +51,7 @@ export const userMiddleware: RequestHandler = async (
     const userData: unknown = userDocument.data();
     if (!isUserData(userData)) {
       console.error(
-        "User document is missing a valid email or name:",
+        "User document is missing a valid email, name, or isForTesting:",
         userDocument.id,
       );
       res.status(500).json({ error: "Failed to fetch user" });
@@ -59,6 +61,7 @@ export const userMiddleware: RequestHandler = async (
     const response: UserResponse = {
       email: userData.email,
       id: userDocument.id,
+      isForTesting: userData.isForTesting,
       name: userData.name,
     };
     res.json(response);

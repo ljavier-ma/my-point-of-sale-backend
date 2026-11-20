@@ -48,9 +48,8 @@ import {
 
 const productData = {
   barcode: "",
+  baseStockAmount: 10,
   code: "330750.51",
-  idealAmount: 2,
-  lowQuantity: 1,
   name: "ESMALTE S.D. ALUMINIO FINO 3.785 LTS",
   stock: 3,
   unitaryPrice: 273.7,
@@ -84,12 +83,19 @@ interface FirestoreConfig {
     id: string;
   };
   storeCount?: number;
+  storeSettings?: unknown;
 }
 
 function configureFirestore(config: FirestoreConfig = {}): void {
   const productDocuments = config.productDocuments ?? [];
   const membershipExists = config.membershipExists ?? true;
   const storeCount = config.storeCount ?? 1;
+  const storeSettings = Object.hasOwn(config, "storeSettings")
+    ? config.storeSettings
+    : {
+        idealPercentageOfProduct: 80,
+        lowPercentageOfProduct: 20,
+      };
   productCollection.offset.mockReturnThis();
   productCollection.limit.mockReturnThis();
   productCollection.add.mockResolvedValue({ id: "generated-product-id" });
@@ -130,6 +136,7 @@ function configureFirestore(config: FirestoreConfig = {}): void {
   const stores = Array.from(
     { length: storeCount },
     (_value: unknown, index: number) => ({
+      data: (): { settings: unknown } => ({ settings: storeSettings }),
       id: `store-${String(index + 1)}`,
       ref: {
         collection: vi.fn((name: string) =>
@@ -198,6 +205,34 @@ describe("searchProductsMiddleware", () => {
     expect(res.status).not.toHaveBeenCalled();
   });
 
+  it("returns at most 10 matching products", async () => {
+    configureFirestore({
+      productDocuments: Array.from({ length: 12 }, (_value, index) => ({
+        data: (): typeof productData => productData,
+        id: `product-${String(index + 1)}`,
+      })),
+    });
+    const req = {
+      firebaseUser: { uid: "user-1" },
+      query: { name: "aluminio fino" },
+    } as Request<
+      Record<string, never>,
+      ErrorResponse | ProductResponse[],
+      unknown,
+      ProductsSearchQuery
+    >;
+    const res = createResponse();
+
+    await searchProductsMiddleware(req, res, vi.fn());
+
+    expect(res.json).toHaveBeenCalledWith(
+      Array.from({ length: 10 }, (_value, index) => ({
+        ...productData,
+        id: `product-${String(index + 1)}`,
+      })),
+    );
+  });
+
   it("returns 400 when the name query parameter is missing or blank", async () => {
     const req = {
       firebaseUser: { uid: "user-1" },
@@ -225,48 +260,59 @@ describe("bellowIdealProductsMiddleware", () => {
     vi.clearAllMocks();
   });
 
-  it("returns products with stock strictly between low quantity and ideal amount", async () => {
+  it("returns products whose stock percentage is strictly between store thresholds", async () => {
     configureFirestore({
       productDocuments: [
         {
           data: (): typeof productData => ({
             ...productData,
-            idealAmount: 3,
-            stock: 2,
+            stock: 5,
           }),
-          id: "below-ideal",
+          id: "below-ideal-percentage",
         },
         {
           data: (): typeof productData => ({
             ...productData,
-            idealAmount: 3,
-            stock: 1,
-          }),
-          id: "at-low-quantity",
-        },
-        {
-          data: (): typeof productData => ({
-            ...productData,
-            idealAmount: 3,
             stock: 3,
           }),
-          id: "at-ideal-amount",
+          id: "at-low-percentage",
         },
         {
           data: (): typeof productData => ({
             ...productData,
-            idealAmount: 3,
-            stock: 0,
+            stock: 7,
           }),
-          id: "below-low-quantity",
+          id: "at-ideal-percentage",
+        },
+        {
+          data: (): typeof productData => ({
+            ...productData,
+            stock: 2,
+          }),
+          id: "below-low-percentage",
+        },
+        {
+          data: (): typeof productData => ({
+            ...productData,
+            baseStockAmount: 0,
+            stock: 5,
+          }),
+          id: "zero-base-stock",
         },
       ],
+      storeSettings: {
+        idealPercentageOfProduct: 70,
+        lowPercentageOfProduct: 30,
+      },
     });
     const req = {
       firebaseUser: { uid: "user-1" },
+      query: { limit: "5", offset: "0" },
     } as Request<
       Record<string, never>,
-      ErrorResponse | ProductsBelowIdealResponse
+      ErrorResponse | ProductsBelowIdealResponse,
+      unknown,
+      ProductsQuery
     >;
     const res = createResponse();
 
@@ -274,16 +320,80 @@ describe("bellowIdealProductsMiddleware", () => {
 
     expect(res.json).toHaveBeenCalledWith({
       products: [
-        { ...productData, id: "below-ideal", idealAmount: 3, stock: 2 },
+        {
+          ...productData,
+          id: "below-ideal-percentage",
+          stock: 5,
+        },
       ],
+      totalOfProducts: 1,
     });
     expect(res.status).not.toHaveBeenCalled();
+  });
+
+  it("paginates matching products and reports their total", async () => {
+    configureFirestore({
+      productDocuments: [
+        {
+          data: (): typeof productData => ({ ...productData, stock: 5 }),
+          id: "first-match",
+        },
+        {
+          data: (): typeof productData => ({ ...productData, stock: 6 }),
+          id: "second-match",
+        },
+      ],
+      storeSettings: {
+        idealPercentageOfProduct: 70,
+        lowPercentageOfProduct: 30,
+      },
+    });
+    const req = {
+      firebaseUser: { uid: "user-1" },
+      query: { limit: "1", offset: "1" },
+    } as Request<
+      Record<string, never>,
+      ErrorResponse | ProductsBelowIdealResponse,
+      unknown,
+      ProductsQuery
+    >;
+    const res = createResponse();
+
+    await bellowIdealProductsMiddleware(req, res, vi.fn());
+
+    expect(res.json).toHaveBeenCalledWith({
+      products: [{ ...productData, id: "second-match", stock: 6 }],
+      totalOfProducts: 2,
+    });
+  });
+
+  it("returns 400 when pagination parameters are missing or invalid", async () => {
+    const req = {
+      firebaseUser: { uid: "user-1" },
+      query: { limit: "0", offset: "-1" },
+    } as Request<
+      Record<string, never>,
+      ErrorResponse | ProductsBelowIdealResponse,
+      unknown,
+      ProductsQuery
+    >;
+    const res = createResponse();
+
+    await bellowIdealProductsMiddleware(req, res, vi.fn());
+
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Valid offset and limit query parameters are required",
+    });
+    expect(firestoreDB.collection).not.toHaveBeenCalled();
   });
 
   it("returns 401 when the request is unauthenticated", async () => {
     const req = {} as Request<
       Record<string, never>,
-      ErrorResponse | ProductsBelowIdealResponse
+      ErrorResponse | ProductsBelowIdealResponse,
+      unknown,
+      ProductsQuery
     >;
     const res = createResponse();
 
@@ -302,28 +412,43 @@ describe("lowQuantityProductsMiddleware", () => {
     vi.clearAllMocks();
   });
 
-  it("returns products whose stock is at or below their low quantity", async () => {
+  it("returns products whose stock percentage is at or below the store low threshold", async () => {
     configureFirestore({
       productDocuments: [
         {
-          data: (): typeof productData => ({ ...productData, stock: 0 }),
-          id: "below-low-quantity",
-        },
-        {
-          data: (): typeof productData => ({ ...productData, stock: 1 }),
-          id: "at-low-quantity",
-        },
-        {
           data: (): typeof productData => ({ ...productData, stock: 2 }),
-          id: "above-low-quantity",
+          id: "below-low-percentage",
+        },
+        {
+          data: (): typeof productData => ({ ...productData, stock: 3 }),
+          id: "at-low-percentage",
+        },
+        {
+          data: (): typeof productData => ({ ...productData, stock: 4 }),
+          id: "above-low-percentage",
+        },
+        {
+          data: (): typeof productData => ({
+            ...productData,
+            baseStockAmount: 0,
+            stock: 0,
+          }),
+          id: "zero-base-stock",
         },
       ],
+      storeSettings: {
+        idealPercentageOfProduct: 80,
+        lowPercentageOfProduct: 30,
+      },
     });
     const req = {
       firebaseUser: { uid: "user-1" },
+      query: { limit: "5", offset: "0" },
     } as Request<
       Record<string, never>,
-      ErrorResponse | ProductsLowQuantityResponse
+      ErrorResponse | ProductsLowQuantityResponse,
+      unknown,
+      ProductsQuery
     >;
     const res = createResponse();
 
@@ -331,17 +456,77 @@ describe("lowQuantityProductsMiddleware", () => {
 
     expect(res.json).toHaveBeenCalledWith({
       products: [
-        { ...productData, id: "below-low-quantity", stock: 0 },
-        { ...productData, id: "at-low-quantity", stock: 1 },
+        { ...productData, id: "below-low-percentage", stock: 2 },
+        { ...productData, id: "at-low-percentage", stock: 3 },
       ],
+      totalOfProducts: 2,
     });
     expect(res.status).not.toHaveBeenCalled();
+  });
+
+  it("paginates matching products and reports their total", async () => {
+    configureFirestore({
+      productDocuments: [
+        {
+          data: (): typeof productData => ({ ...productData, stock: 2 }),
+          id: "first-match",
+        },
+        {
+          data: (): typeof productData => ({ ...productData, stock: 3 }),
+          id: "second-match",
+        },
+      ],
+      storeSettings: {
+        idealPercentageOfProduct: 80,
+        lowPercentageOfProduct: 30,
+      },
+    });
+    const req = {
+      firebaseUser: { uid: "user-1" },
+      query: { limit: "1", offset: "1" },
+    } as Request<
+      Record<string, never>,
+      ErrorResponse | ProductsLowQuantityResponse,
+      unknown,
+      ProductsQuery
+    >;
+    const res = createResponse();
+
+    await lowQuantityProductsMiddleware(req, res, vi.fn());
+
+    expect(res.json).toHaveBeenCalledWith({
+      products: [{ ...productData, id: "second-match", stock: 3 }],
+      totalOfProducts: 2,
+    });
+  });
+
+  it("returns 400 when pagination parameters are missing or invalid", async () => {
+    const req = {
+      firebaseUser: { uid: "user-1" },
+      query: { limit: "0", offset: "-1" },
+    } as Request<
+      Record<string, never>,
+      ErrorResponse | ProductsLowQuantityResponse,
+      unknown,
+      ProductsQuery
+    >;
+    const res = createResponse();
+
+    await lowQuantityProductsMiddleware(req, res, vi.fn());
+
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Valid offset and limit query parameters are required",
+    });
+    expect(firestoreDB.collection).not.toHaveBeenCalled();
   });
 
   it("returns 401 when the request is unauthenticated", async () => {
     const req = {} as Request<
       Record<string, never>,
-      ErrorResponse | ProductsLowQuantityResponse
+      ErrorResponse | ProductsLowQuantityResponse,
+      unknown,
+      ProductsQuery
     >;
     const res = createResponse();
 
@@ -426,7 +611,9 @@ describe("productsMiddleware", () => {
             ...productData,
             eighthLiterPrice: 36,
             halfLiterPrice: 102,
+            idealAmount: 2,
             literPrice: 167,
+            lowQuantity: 1,
             publicPrice: 397,
             quarterLiterPrice: 62,
           }),
@@ -694,7 +881,13 @@ describe("productsMiddleware", () => {
     it("creates the product with a Firestore-generated document ID", async () => {
       configureFirestore();
       const req = {
-        body: { ...productData, id: "client-id", ignored: "not stored" },
+        body: {
+          ...productData,
+          id: "client-id",
+          idealAmount: 2,
+          ignored: "not stored",
+          lowQuantity: 1,
+        },
         firebaseUser: { uid: "user-1" },
       } as Request<
         Record<string, never>,
@@ -726,9 +919,8 @@ describe("productsMiddleware", () => {
       const res = createResponse();
       const productWithDefaultFields = {
         barcode: "",
+        baseStockAmount: 0,
         code: "",
-        idealAmount: 0,
-        lowQuantity: 0,
         name: "New product",
         stock: 0,
         unitaryPrice: 0,
@@ -868,9 +1060,11 @@ describe("productsMiddleware", () => {
     configureFirestore({
       productDocuments: [
         {
-          data: (): Omit<typeof productData, "stock"> & { stock: string } => ({
+          data: (): Omit<typeof productData, "baseStockAmount"> & {
+            baseStockAmount: string;
+          } => ({
             ...productData,
-            stock: "3",
+            baseStockAmount: "3",
           }),
           id: "invalid-product",
         },

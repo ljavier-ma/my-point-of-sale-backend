@@ -6,10 +6,9 @@ export interface ErrorResponse {
 
 export interface ProductResponse {
   barcode: string;
+  baseStockAmount: number;
   code: string;
   id: string;
-  idealAmount: number;
-  lowQuantity: number;
   name: string;
   stock: number;
   unitaryPrice: number;
@@ -17,10 +16,12 @@ export interface ProductResponse {
 
 export interface ProductsBelowIdealResponse {
   products: ProductResponse[];
+  totalOfProducts: number;
 }
 
 export interface ProductsLowQuantityResponse {
   products: ProductResponse[];
+  totalOfProducts: number;
 }
 
 export interface ProductsQuery extends Query {
