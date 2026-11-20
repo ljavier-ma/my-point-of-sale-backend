@@ -64,6 +64,7 @@ describe("userMiddleware", () => {
     mockUserDocument({
       email: "user@example.com",
       extra: "not returned",
+      isForTesting: true,
       name: "Example User",
     });
     const req = { firebaseUser: { uid: "user-1" } } as Request;
@@ -76,6 +77,7 @@ describe("userMiddleware", () => {
     expect(res.json).toHaveBeenCalledWith({
       email: "user@example.com",
       id: "user-1",
+      isForTesting: true,
       name: "Example User",
     });
     expect(res.status).not.toHaveBeenCalled();
@@ -95,6 +97,7 @@ describe("userMiddleware", () => {
   it("returns 500 when the Firestore user document has an invalid shape", async () => {
     mockUserDocument({
       email: "user@example.com",
+      isForTesting: "yes",
       name: 7,
     });
     const consoleError = vi
@@ -106,7 +109,7 @@ describe("userMiddleware", () => {
     await userMiddleware(req, res, vi.fn());
 
     expect(consoleError).toHaveBeenCalledWith(
-      "User document is missing a valid email or name:",
+      "User document is missing a valid email, name, or isForTesting:",
       "user-1",
     );
     expect(res.status).toHaveBeenCalledWith(500);
