@@ -74,7 +74,10 @@ function isStoreUpdateRequest(value: unknown): value is StoreUpdateRequest {
     Number.isFinite(settingsData.lowPercentageOfProduct) &&
     settingsData.lowPercentageOfProduct >= 0 &&
     settingsData.lowPercentageOfProduct < 100 &&
-    settingsData.idealPercentageOfProduct > settingsData.lowPercentageOfProduct
+    (settingsData.idealPercentageOfProduct >
+      settingsData.lowPercentageOfProduct ||
+      (settingsData.idealPercentageOfProduct === 0 &&
+        settingsData.lowPercentageOfProduct === 0))
   );
 }
 

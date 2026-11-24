@@ -235,6 +235,27 @@ describe("storeMiddleware", () => {
       expect(res.status).not.toHaveBeenCalled();
     });
 
+    it("accepts zero for both product thresholds", async () => {
+      const storeReference = createStore();
+      const body = {
+        name: "Updated store",
+        settings: {
+          idealPercentageOfProduct: 0,
+          lowPercentageOfProduct: 0,
+        },
+      };
+      const req = {
+        body,
+        firebaseUser: { uid: "user-1" },
+      } as Request;
+      const res = createResponse();
+
+      await updateStoreMiddleware(req, res, vi.fn());
+
+      expect(storeReference.update).toHaveBeenCalledWith(body);
+      expect(res.status).not.toHaveBeenCalled();
+    });
+
     it.each([
       [
         "equal percentages",
