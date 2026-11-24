@@ -40,6 +40,14 @@ Default Credentials, which is the intended option on Firebase App Hosting.
 Grant the App Hosting runtime service account access to Firebase Authentication
 and Firestore; do not deploy a local service-account file.
 
+When creating Firebase custom tokens with Application Default Credentials, the
+runtime service account also needs `roles/iam.serviceAccountTokenCreator` on the
+service account used to sign tokens. This grants `iam.serviceAccounts.signBlob`,
+which the Admin SDK uses for remote signing. Ensure the IAM Service Account
+Credentials API is enabled. See the [Firebase custom-token
+documentation](https://firebase.google.com/docs/auth/admin/create-custom-tokens)
+for details.
+
 ## Test login endpoint
 
 `POST /test-login` starts a session for the dedicated
