@@ -10,6 +10,7 @@ export interface ProductResponse {
   code: string;
   id: string;
   name: string;
+  publicPrice: number;
   stock: number;
   unitaryPrice: number;
 }
