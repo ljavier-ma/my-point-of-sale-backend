@@ -30,6 +30,7 @@ const productFields = [
   "baseStockAmount",
   "code",
   "name",
+  "publicPrice",
   "stock",
   "unitaryPrice",
 ] as const satisfies readonly (keyof Omit<ProductResponse, "id">)[];
@@ -147,6 +148,7 @@ function normalizeCreateProductInput(
     baseStockAmount: value.baseStockAmount ?? 0,
     code: value.code ?? "",
     name: value.name,
+    publicPrice: value.publicPrice ?? 0,
     stock: value.stock ?? 0,
     unitaryPrice: value.unitaryPrice ?? 0,
   };
@@ -174,6 +176,7 @@ function pickProductData(
     baseStockAmount: value.baseStockAmount,
     code: value.code,
     name: value.name,
+    publicPrice: value.publicPrice,
     stock: value.stock,
     unitaryPrice: value.unitaryPrice,
   };

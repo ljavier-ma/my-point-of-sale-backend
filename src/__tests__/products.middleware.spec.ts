@@ -51,6 +51,7 @@ const productData = {
   baseStockAmount: 10,
   code: "330750.51",
   name: "ESMALTE S.D. ALUMINIO FINO 3.785 LTS",
+  publicPrice: 396.865,
   stock: 3,
   unitaryPrice: 273.7,
 };
@@ -644,7 +645,7 @@ describe("productsMiddleware", () => {
     expect(productCollection.offset).toHaveBeenCalledWith(10);
     expect(productCollection.limit).toHaveBeenCalledWith(5);
     expect(res.json).toHaveBeenCalledWith({
-      products: [{ ...productData, id: "product-1" }],
+      products: [{ ...productData, id: "product-1", publicPrice: 397 }],
       totalOfProducts: 15,
     });
     expect(res.status).not.toHaveBeenCalled();
@@ -922,6 +923,7 @@ describe("productsMiddleware", () => {
         baseStockAmount: 0,
         code: "",
         name: "New product",
+        publicPrice: 0,
         stock: 0,
         unitaryPrice: 0,
       };
@@ -942,6 +944,25 @@ describe("productsMiddleware", () => {
       configureFirestore();
       const req = {
         body: { ...productData, stock: null },
+        firebaseUser: { uid: "user-1" },
+      } as Request<
+        Record<string, never>,
+        ErrorResponse | ProductResponse,
+        unknown
+      >;
+      const res = createResponse();
+
+      await createProductMiddleware(req, res, vi.fn());
+
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(res.json).toHaveBeenCalledWith({ error: "Invalid product data" });
+      expect(productCollection.add).not.toHaveBeenCalled();
+    });
+
+    it("rejects a non-numeric publicPrice", async () => {
+      configureFirestore();
+      const req = {
+        body: { ...productData, publicPrice: "396.865" },
         firebaseUser: { uid: "user-1" },
       } as Request<
         Record<string, never>,
