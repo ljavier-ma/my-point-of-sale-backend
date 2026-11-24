@@ -28,9 +28,11 @@ and `settings` object with numeric `idealPercentageOfProduct` and
 `PATCH /store` accepts a JSON object containing a non-empty `name` and a
 `settings` object with numeric `idealPercentageOfProduct` and
 `lowPercentageOfProduct` values from `0` (inclusive) to `100` (exclusive). It
-also requires `idealPercentageOfProduct` to be greater than
-`lowPercentageOfProduct`. It updates those fields on the authenticated user's
-store and returns the updated store.
+requires `idealPercentageOfProduct` to be greater than
+`lowPercentageOfProduct`, except both may be `0` to disable the low-stock
+product lists. In that case, the below-ideal and low-quantity endpoints return
+empty product arrays. It updates those fields on the authenticated user's store
+and returns the updated store.
 
 ## Firebase Admin credentials
 

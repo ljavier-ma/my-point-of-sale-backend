@@ -368,6 +368,36 @@ describe("bellowIdealProductsMiddleware", () => {
     });
   });
 
+  it("returns no products when both thresholds are zero", async () => {
+    configureFirestore({
+      productDocuments: [
+        { data: (): typeof productData => productData, id: "p1" },
+      ],
+      storeSettings: {
+        idealPercentageOfProduct: 0,
+        lowPercentageOfProduct: 0,
+      },
+    });
+    const req = {
+      firebaseUser: { uid: "user-1" },
+      query: { limit: "5", offset: "0" },
+    } as Request<
+      Record<string, never>,
+      ErrorResponse | ProductsBelowIdealResponse,
+      unknown,
+      ProductsQuery
+    >;
+    const res = createResponse();
+
+    await bellowIdealProductsMiddleware(req, res, vi.fn());
+
+    expect(res.json).toHaveBeenCalledWith({
+      products: [],
+      totalOfProducts: 0,
+    });
+    expect(productCollection.get).not.toHaveBeenCalled();
+  });
+
   it("returns 400 when pagination parameters are missing or invalid", async () => {
     const req = {
       firebaseUser: { uid: "user-1" },
@@ -499,6 +529,36 @@ describe("lowQuantityProductsMiddleware", () => {
       products: [{ ...productData, id: "second-match", stock: 3 }],
       totalOfProducts: 2,
     });
+  });
+
+  it("returns no products when both thresholds are zero", async () => {
+    configureFirestore({
+      productDocuments: [
+        { data: (): typeof productData => productData, id: "p1" },
+      ],
+      storeSettings: {
+        idealPercentageOfProduct: 0,
+        lowPercentageOfProduct: 0,
+      },
+    });
+    const req = {
+      firebaseUser: { uid: "user-1" },
+      query: { limit: "5", offset: "0" },
+    } as Request<
+      Record<string, never>,
+      ErrorResponse | ProductsLowQuantityResponse,
+      unknown,
+      ProductsQuery
+    >;
+    const res = createResponse();
+
+    await lowQuantityProductsMiddleware(req, res, vi.fn());
+
+    expect(res.json).toHaveBeenCalledWith({
+      products: [],
+      totalOfProducts: 0,
+    });
+    expect(productCollection.get).not.toHaveBeenCalled();
   });
 
   it("returns 400 when pagination parameters are missing or invalid", async () => {

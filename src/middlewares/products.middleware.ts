@@ -61,6 +61,13 @@ function getStoreSettings(value: unknown): StoreSettings | undefined {
     : undefined;
 }
 
+function hasNoProductThresholds(
+  idealPercentageOfProduct: number,
+  lowPercentageOfProduct: number,
+): boolean {
+  return idealPercentageOfProduct === 0 && lowPercentageOfProduct === 0;
+}
+
 function isCompleteProductInput(
   value: unknown,
 ): value is Omit<ProductResponse, "id"> {
@@ -126,7 +133,11 @@ function isStoreSettings(value: unknown): value is StoreSettings {
     Number.isFinite(settings.lowPercentageOfProduct) &&
     settings.lowPercentageOfProduct >= 0 &&
     settings.lowPercentageOfProduct < 100 &&
-    settings.idealPercentageOfProduct > settings.lowPercentageOfProduct
+    (settings.idealPercentageOfProduct > settings.lowPercentageOfProduct ||
+      hasNoProductThresholds(
+        settings.idealPercentageOfProduct,
+        settings.lowPercentageOfProduct,
+      ))
   );
 }
 
@@ -407,6 +418,16 @@ export const bellowIdealProductsMiddleware: RequestHandler<
       return;
     }
 
+    if (
+      hasNoProductThresholds(
+        settings.idealPercentageOfProduct,
+        settings.lowPercentageOfProduct,
+      )
+    ) {
+      res.json({ products: [], totalOfProducts: 0 });
+      return;
+    }
+
     const productSnapshot = await store.ref.collection("products").get();
     const products: ProductResponse[] = [];
 
@@ -507,6 +528,16 @@ export const lowQuantityProductsMiddleware: RequestHandler<
       res
         .status(500)
         .json({ error: "Failed to fetch products below low quantity" });
+      return;
+    }
+
+    if (
+      hasNoProductThresholds(
+        settings.idealPercentageOfProduct,
+        settings.lowPercentageOfProduct,
+      )
+    ) {
+      res.json({ products: [], totalOfProducts: 0 });
       return;
     }
 
