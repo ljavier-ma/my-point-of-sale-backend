@@ -5,16 +5,20 @@ import type { UserResponse } from "../types/user.js";
 import { firestoreDB } from "../config/firebase.js";
 import { getAuthenticatedUserId } from "../utils/auth.js";
 
-function isUserData(value: unknown): value is Omit<UserResponse, "id"> {
+type FirestoreUserData = Partial<Pick<UserResponse, "isForTesting">> &
+  Pick<UserResponse, "email" | "name">;
+
+function isUserData(value: unknown): value is FirestoreUserData {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    return false;
+  }
+
+  const data: Record<string, unknown> = value as Record<string, unknown>;
   return (
-    typeof value === "object" &&
-    value !== null &&
-    "email" in value &&
-    typeof value.email === "string" &&
-    "isForTesting" in value &&
-    typeof value.isForTesting === "boolean" &&
-    "name" in value &&
-    typeof value.name === "string"
+    typeof data.email === "string" &&
+    typeof data.name === "string" &&
+    (!Object.hasOwn(data, "isForTesting") ||
+      typeof data.isForTesting === "boolean")
   );
 }
 
@@ -51,7 +55,7 @@ export const userMiddleware: RequestHandler = async (
     const userData: unknown = userDocument.data();
     if (!isUserData(userData)) {
       console.error(
-        "User document is missing a valid email, name, or isForTesting:",
+        "User document is missing valid email or name, or has invalid isForTesting:",
         userDocument.id,
       );
       res.status(500).json({ error: "Failed to fetch user" });
@@ -61,7 +65,7 @@ export const userMiddleware: RequestHandler = async (
     const response: UserResponse = {
       email: userData.email,
       id: userDocument.id,
-      isForTesting: userData.isForTesting,
+      isForTesting: userData.isForTesting === true,
       name: userData.name,
     };
     res.json(response);
