@@ -30,6 +30,7 @@ const productFields = [
   "baseStockAmount",
   "code",
   "name",
+  "publicPrice",
   "stock",
   "unitaryPrice",
 ] as const satisfies readonly (keyof Omit<ProductResponse, "id">)[];
@@ -58,6 +59,13 @@ function getStoreSettings(value: unknown): StoreSettings | undefined {
     isStoreSettings(storeData.settings)
     ? storeData.settings
     : undefined;
+}
+
+function hasNoProductThresholds(
+  idealPercentageOfProduct: number,
+  lowPercentageOfProduct: number,
+): boolean {
+  return idealPercentageOfProduct === 0 && lowPercentageOfProduct === 0;
 }
 
 function isCompleteProductInput(
@@ -125,7 +133,11 @@ function isStoreSettings(value: unknown): value is StoreSettings {
     Number.isFinite(settings.lowPercentageOfProduct) &&
     settings.lowPercentageOfProduct >= 0 &&
     settings.lowPercentageOfProduct < 100 &&
-    settings.idealPercentageOfProduct > settings.lowPercentageOfProduct
+    (settings.idealPercentageOfProduct > settings.lowPercentageOfProduct ||
+      hasNoProductThresholds(
+        settings.idealPercentageOfProduct,
+        settings.lowPercentageOfProduct,
+      ))
   );
 }
 
@@ -147,6 +159,7 @@ function normalizeCreateProductInput(
     baseStockAmount: value.baseStockAmount ?? 0,
     code: value.code ?? "",
     name: value.name,
+    publicPrice: value.publicPrice ?? 0,
     stock: value.stock ?? 0,
     unitaryPrice: value.unitaryPrice ?? 0,
   };
@@ -174,6 +187,7 @@ function pickProductData(
     baseStockAmount: value.baseStockAmount,
     code: value.code,
     name: value.name,
+    publicPrice: value.publicPrice,
     stock: value.stock,
     unitaryPrice: value.unitaryPrice,
   };
@@ -404,6 +418,16 @@ export const bellowIdealProductsMiddleware: RequestHandler<
       return;
     }
 
+    if (
+      hasNoProductThresholds(
+        settings.idealPercentageOfProduct,
+        settings.lowPercentageOfProduct,
+      )
+    ) {
+      res.json({ products: [], totalOfProducts: 0 });
+      return;
+    }
+
     const productSnapshot = await store.ref.collection("products").get();
     const products: ProductResponse[] = [];
 
@@ -504,6 +528,16 @@ export const lowQuantityProductsMiddleware: RequestHandler<
       res
         .status(500)
         .json({ error: "Failed to fetch products below low quantity" });
+      return;
+    }
+
+    if (
+      hasNoProductThresholds(
+        settings.idealPercentageOfProduct,
+        settings.lowPercentageOfProduct,
+      )
+    ) {
+      res.json({ products: [], totalOfProducts: 0 });
       return;
     }
 

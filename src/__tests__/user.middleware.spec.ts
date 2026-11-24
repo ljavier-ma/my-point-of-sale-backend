@@ -83,6 +83,25 @@ describe("userMiddleware", () => {
     expect(res.status).not.toHaveBeenCalled();
   });
 
+  it("defaults isForTesting to false when it is absent from Firestore", async () => {
+    mockUserDocument({
+      email: "user@example.com",
+      name: "Example User",
+    });
+    const req = { firebaseUser: { uid: "user-1" } } as Request;
+    const res = createResponse();
+
+    await userMiddleware(req, res, vi.fn());
+
+    expect(res.json).toHaveBeenCalledWith({
+      email: "user@example.com",
+      id: "user-1",
+      isForTesting: false,
+      name: "Example User",
+    });
+    expect(res.status).not.toHaveBeenCalled();
+  });
+
   it("returns 404 when the authenticated user is not in a store", async () => {
     mockUserDocument(undefined, false);
     const req = { firebaseUser: { uid: "user-1" } } as Request;
@@ -109,7 +128,7 @@ describe("userMiddleware", () => {
     await userMiddleware(req, res, vi.fn());
 
     expect(consoleError).toHaveBeenCalledWith(
-      "User document is missing a valid email, name, or isForTesting:",
+      "User document is missing valid email or name, or has invalid isForTesting:",
       "user-1",
     );
     expect(res.status).toHaveBeenCalledWith(500);
