@@ -77,6 +77,7 @@ ID, and the total number of products in that store:
       "baseStockAmount": 10,
       "barcode": "",
       "code": "330750.51",
+      "measurementUnit": "",
       "name": "ESMALTE S.D. ALUMINIO FINO 3.785 LTS",
       "publicPrice": 396.865,
       "stock": 3,
@@ -105,9 +106,10 @@ is undefined. Each product includes its Firestore ID.
 
 `POST /products` uses the same Firebase ID token and store membership. Send a
 JSON object with the required `name` and any optional product fields shown
-above, including numeric `baseStockAmount` and `publicPrice`, excluding `id`.
-Omitted string fields are stored as empty strings and omitted numeric fields as
-`0`; product fields cannot be `null`. Barcode, code, and name must each be unique among
+above, including numeric `baseStockAmount` and `publicPrice`, and string
+`measurementUnit`, excluding `id`. Omitted string fields are stored as empty
+strings and omitted numeric fields as `0`; product fields cannot be `null`.
+Barcode, code, and name must each be unique among
 non-empty values in the authenticated user's store. The server creates a
 document in `stores/{storeId}/products` using a Firestore-generated document ID
 and returns the product with that ID. A duplicate barcode, code, or name
@@ -115,8 +117,8 @@ returns `409 Conflict`.
 
 `PATCH /products/{productId}` updates a product in the authenticated user's
 store. The request must contain all product fields, including
-`baseStockAmount` and `publicPrice`; the product ID, null values, and
-unrecognized fields cannot be changed.
+`baseStockAmount`, `publicPrice`, and `measurementUnit`; the product ID, null
+values, and unrecognized fields cannot be changed.
 
 `DELETE /product/{productId}` deletes the specified product from the
 authenticated user's store and returns `204 No Content` when successful.
