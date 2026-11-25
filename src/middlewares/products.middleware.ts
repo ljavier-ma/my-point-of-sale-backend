@@ -29,6 +29,7 @@ const productFields = [
   "barcode",
   "baseStockAmount",
   "code",
+  "measurementUnit",
   "name",
   "publicPrice",
   "stock",
@@ -145,7 +146,12 @@ function isValidProductField(
   field: (typeof productFields)[number],
   value: unknown,
 ): boolean {
-  if (field === "barcode" || field === "code" || field === "name") {
+  if (
+    field === "barcode" ||
+    field === "code" ||
+    field === "measurementUnit" ||
+    field === "name"
+  ) {
     return typeof value === "string";
   }
   return typeof value === "number" && Number.isFinite(value);
@@ -158,6 +164,7 @@ function normalizeCreateProductInput(
     barcode: value.barcode ?? "",
     baseStockAmount: value.baseStockAmount ?? 0,
     code: value.code ?? "",
+    measurementUnit: value.measurementUnit ?? "",
     name: value.name,
     publicPrice: value.publicPrice ?? 0,
     stock: value.stock ?? 0,
@@ -186,6 +193,7 @@ function pickProductData(
     barcode: value.barcode,
     baseStockAmount: value.baseStockAmount,
     code: value.code,
+    measurementUnit: value.measurementUnit,
     name: value.name,
     publicPrice: value.publicPrice,
     stock: value.stock,
