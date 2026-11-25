@@ -9,6 +9,7 @@ export interface ProductResponse {
   baseStockAmount: number;
   code: string;
   id: string;
+  measurementUnit: string;
   name: string;
   publicPrice: number;
   stock: number;
