@@ -12,6 +12,22 @@ Express app for managment of the backend of the point of sale.
 
 The project has been configured to use typescript following [this article](https://medium.com/@gabrieldrouin/node-js-2025-guide-how-to-setup-express-js-with-typescript-eslint-and-prettier-b342cd21c30d).
 
+## Getting Started
+
+First, install the dependencies:
+
+```bash
+npm ci
+```
+
+Then run the project:
+
+```bash
+npm run dev
+```
+
+The project will run on [http://localhost:3000](http://localhost:3000)
+
 ## Local browser requests
 
 The API allows browser requests from
